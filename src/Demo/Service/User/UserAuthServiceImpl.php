@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Hash;
 final class UserAuthServiceImpl implements UserAuthService
 {
     public function __construct(
-        private readonly UserRepository $userRepo,
+        private readonly UserRepository $userRepository,
     ) {}
 
     public function register(string $name, string $email, string $plainPassword): int

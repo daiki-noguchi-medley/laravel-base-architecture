@@ -129,6 +129,8 @@ foreach ($userList as $user) {
 | `proc()` | `processRefund()` |
 | `getUsrCnt()` | `getUserCount()` |
 | `chk()` | `validate...()` / `is...()` / `has...()` |
+| `$userRepo` / `$adminRepo` | `$userRepository` / `$adminRepository` (Repository は省略しない) |
+| `$paymentApi` | `$paymentApiRepository` (型名と一致させる) |
 
 慣用的に許容される略語 (略すのが業界標準のもの):
 
@@ -444,9 +446,9 @@ use Illuminate\Support\Facades\DB;
 final class OrderServiceImpl implements OrderService
 {
     public function __construct(
-        private readonly OrderRepository $orderRepo,
-        private readonly UserRepository $userRepo,
-        private readonly PaymentApiRepository $paymentApi,
+        private readonly OrderRepository $orderRepository,
+        private readonly UserRepository $userRepository,
+        private readonly PaymentApiRepository $paymentApiRepository,
     ) {}
 
     public function placeOrder(int $userId, int $amount): Order
@@ -456,7 +458,7 @@ final class OrderServiceImpl implements OrderService
             ?? throw new \InvalidArgumentException("user not found: {$userId}");
 
         // 外部 API も Repository 経由 (Http::post を直接触らない)
-        $payment = $this->paymentApi->charge($user->id, $amount);
+        $payment = $this->paymentApiRepository->charge($user->id, $amount);
 
         // トランザクション境界は Service が握る
         return DB::transaction(function () use ($user, $payment, $amount) {
@@ -610,8 +612,8 @@ use Illuminate\Support\Facades\DB;
 final class OrderServiceImpl implements OrderService
 {
     public function __construct(
-        private readonly OrderRepository $orderRepo,
-        private readonly UserRepository $userRepo,
+        private readonly OrderRepository $orderRepository,
+        private readonly UserRepository $userRepository,
     ) {}
 
     // ↓ interface に PHPDoc を書いているのでここには書かない (IDE が継承表示する)

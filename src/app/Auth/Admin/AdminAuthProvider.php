@@ -15,7 +15,7 @@ use Illuminate\Contracts\Auth\UserProvider;
 final class AdminAuthProvider implements UserProvider
 {
     public function __construct(
-        private readonly AdminRepository $adminRepo,
+        private readonly AdminRepository $adminRepository,
     ) {}
 
     public function retrieveById($identifier): ?Authenticatable

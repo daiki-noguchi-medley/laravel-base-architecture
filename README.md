@@ -468,6 +468,7 @@ docker compose exec batch supervisorctl status
 | [`docs/htmx-alpine.md`](docs/htmx-alpine.md) | htmx + Alpine.js のクイックリファレンス + 組み合わせパターン + 実例 + ハマりどころ |
 | [`docs/queue.md`](docs/queue.md) | Laravel Queue / Job の使い方 (dispatch / Bus::batch / 失敗処理 / 運用 / テスト) |
 | [`docs/schedule.md`](docs/schedule.md) | Laravel タスクスケジュール (cron daemon + schedule:run、頻度指定、Schedule::call/command/job の使い分け) |
+| [`docs/nginx-sidecar.md`](docs/nginx-sidecar.md) | nginx をサイドカーで持つ理由 (静的配信 / ログ / 圧縮 / ALB+ECS での位置づけ / 代替構成比較) |
 | [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md) | PR の書き方ガイド |
 | [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md) | PR テンプレート (自動挿入) |
 

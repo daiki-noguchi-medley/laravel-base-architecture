@@ -441,7 +441,7 @@ docker compose logs -f db     # PostgreSQL の query / connection log
 ```
 
 > 詳細は [`docs/tinker.md`](docs/tinker.md) (Laravel ログを `pail` で見る方法) と
-> [`docs/nginx-sidecar.md`](docs/nginx-sidecar.md) (nginx + Fluent Bit 構成の位置づけ) を参照。
+> [`docs/infra/nginx-sidecar.md`](docs/infra/nginx-sidecar.md) (nginx + Fluent Bit 構成の位置づけ) を参照。
 
 ---
 
@@ -452,16 +452,16 @@ docker compose logs -f db     # PostgreSQL の query / connection log
 | [`README.md`](README.md) | この文書 (インフラ / セットアップ / 運用) |
 | [`src/README.md`](src/README.md) | Laravel アプリ構造 + 認証フローの解説 |
 | [`CLAUDE.md`](CLAUDE.md) | コーディング規約 (§1〜§8、AI agent 用にも) |
-| [`docs/github-actions.md`](docs/github-actions.md) | GitHub Actions の workflow 解説 + Mermaid シーケンス図 + Secrets / トラブルシューティング |
+| [`docs/infra/github-actions.md`](docs/infra/github-actions.md) | GitHub Actions の workflow 解説 + Mermaid シーケンス図 + Secrets / トラブルシューティング |
 | [`docs/testing.md`](docs/testing.md) | テスト規約 + 実行方法 + レイヤー別戦略 (Repository / Service / Controller / VO / Job) |
 | [`docs/htmx-alpine.md`](docs/htmx-alpine.md) | htmx + Alpine.js のクイックリファレンス + 組み合わせパターン + 実例 + ハマりどころ |
 | [`docs/queue.md`](docs/queue.md) | Laravel Queue / Job の使い方 (dispatch / Bus::batch / 失敗処理 / 運用 / テスト) |
 | [`docs/schedule.md`](docs/schedule.md) | Laravel タスクスケジュール (cron daemon + schedule:run、頻度指定、Schedule::call/command/job の使い分け) |
-| [`docs/nginx-sidecar.md`](docs/nginx-sidecar.md) | nginx をサイドカーで持つ理由 (静的配信 / ログ / 圧縮 / ALB+ECS での位置づけ / 代替構成比較) |
-| [`docs/supervisor.md`](docs/supervisor.md) | Supervisor の使い方と運用 (なぜ使うか / conf 構造 / supervisorctl コマンド / job・batch 各コンテナの設定詳細 / ハマりどころ) |
+| [`docs/infra/nginx-sidecar.md`](docs/infra/nginx-sidecar.md) | nginx をサイドカーで持つ理由 (静的配信 / ログ / 圧縮 / ALB+ECS での位置づけ / 代替構成比較) |
+| [`docs/infra/supervisor.md`](docs/infra/supervisor.md) | Supervisor の使い方と運用 (なぜ使うか / conf 構造 / supervisorctl コマンド / job・batch 各コンテナの設定詳細 / ハマりどころ) |
 | [`docs/authentication.md`](docs/authentication.md) | Laravel 認証 (このプロジェクトの session 方式 / Blade と SPA それぞれの Vite plugin / 他方式 (Sanctum / Passport / JWT / Socialite) との比較表) |
 | [`docs/tinker.md`](docs/tinker.md) | Tinker 活用 + artisan 確認系コマンド (Service / Repository を DI 経由で叩く、`about` / `route:list` / `db:show` / `schedule:list` / `pail` 等) |
-| [`docs/oidc-aws.md`](docs/oidc-aws.md) | GitHub Actions → AWS の OIDC 接続セットアップ (長期 access key を置かず短期 token で assume する手順 / AWS Console での Identity Provider・IAM Role 作成 / Trust policy の sub claim 設計) |
+| [`docs/infra/oidc-aws.md`](docs/infra/oidc-aws.md) | GitHub Actions → AWS の OIDC 接続セットアップ (長期 access key を置かず短期 token で assume する手順 / AWS Console での Identity Provider・IAM Role 作成 / Trust policy の sub claim 設計) |
 | [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md) | PR の書き方ガイド |
 | [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md) | PR テンプレート (自動挿入) |
 

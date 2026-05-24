@@ -236,5 +236,5 @@ docker compose exec app tail -f storage/logs/laravel.log
 
 - 規約 (配置 / 命名 / 鉄則): [`../CLAUDE.md §7`](../CLAUDE.md)
 - 非同期 Job: [`queue.md`](./queue.md)
-- GitHub Actions / インフラ: [`github-actions.md`](./github-actions.md)
+- GitHub Actions / インフラ: [`infra/github-actions.md`](./infra/github-actions.md)
 - Laravel 公式: <https://laravel.com/docs/scheduling>

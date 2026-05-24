@@ -59,6 +59,10 @@ OIDC の利点:
 AWS Console での手作業 4 ステップ + GitHub 側 1 ステップ。
 AWS は SAML ログイン経由でも、IAM 操作権限があれば実行可能。
 
+> 💡 **コマンドだけで完結したい場合は [oidc-aws-cli.md](./oidc-aws-cli.md) (CLI 版) を参照。**
+> AWS CLI + `gh` CLI でコピペで動く手順を並べています。
+> Web UI とコマンドで概念は同じなので、どちらか好みの方を選んでください。
+
 ### Step 1. IAM Identity Provider を作成
 
 AWS Console → **IAM** → **Identity providers** → **Add provider**

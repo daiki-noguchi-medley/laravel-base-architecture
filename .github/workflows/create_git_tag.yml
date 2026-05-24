@@ -42,7 +42,9 @@ jobs:
         env:
           SLACK_COLOR: ${{ job.status == 'success' && '#4834d4' || '#dc3545' }}
           SLACK_TITLE: "[${{ github.repository }}] タグ作成"
-          SLACK_MESSAGE: ${{ steps.bump.outputs.new_tag && format('タグ作成完了: {0}', steps.bump.outputs.new_tag) || 'タグ作成に失敗しました' }}
+          # ${{ ... }} 式の中の "タグ作成完了:" のコロンを YAML が mapping separator と
+          # 誤認しないよう、値全体を ".." で囲んで quoted string にする。
+          SLACK_MESSAGE: "${{ steps.bump.outputs.new_tag && format('タグ作成完了: {0}', steps.bump.outputs.new_tag) || 'タグ作成に失敗しました' }}"
           SLACK_USERNAME: GitHub Actions
           SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
           MSG_MINIMAL: ref,actions url

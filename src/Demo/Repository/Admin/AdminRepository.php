@@ -35,6 +35,10 @@ interface AdminRepository
 
     /**
      * Remember Me トークンを更新する。
+     *
+     * @param int $id 対象管理者 ID
+     * @param string|null $token rememberToken (null でクリア)
+     * @return void
      */
     public function updateRememberToken(int $id, ?string $token): void;
 }

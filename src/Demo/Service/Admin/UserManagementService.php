@@ -31,6 +31,7 @@ interface UserManagementService
      * ユーザーを論理削除する。
      *
      * @param int $userId 対象ユーザー ID
+     * @return void
      * @throws \InvalidArgumentException ユーザーが存在しない / 既に削除済み
      */
     public function deleteUser(int $userId): void;

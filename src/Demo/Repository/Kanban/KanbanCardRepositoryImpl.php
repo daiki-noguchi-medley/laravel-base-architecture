@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Demo\Repository\Kanban;
 
 use App\Enums\KanbanLane;
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 final class KanbanCardRepositoryImpl implements KanbanCardRepository
@@ -49,8 +50,8 @@ final class KanbanCardRepositoryImpl implements KanbanCardRepository
             'body'       => $body,
             'lane'       => $lane->value,
             'position'   => $position,
-            'created_at' => now(),
-            'updated_at' => now(),
+            'created_at' => Carbon::now(),
+            'updated_at' => Carbon::now(),
         ]);
     }
 
@@ -59,7 +60,7 @@ final class KanbanCardRepositoryImpl implements KanbanCardRepository
         DB::table('kanban_card')->where('id', $id)->update([
             'title'      => $title,
             'body'       => $body,
-            'updated_at' => now(),
+            'updated_at' => Carbon::now(),
         ]);
     }
 
@@ -68,15 +69,15 @@ final class KanbanCardRepositoryImpl implements KanbanCardRepository
         DB::table('kanban_card')->where('id', $id)->update([
             'lane'       => $lane->value,
             'position'   => $position,
-            'updated_at' => now(),
+            'updated_at' => Carbon::now(),
         ]);
     }
 
     public function softDelete(int $id): void
     {
         DB::table('kanban_card')->where('id', $id)->update([
-            'deleted_at' => now(),
-            'updated_at' => now(),
+            'deleted_at' => Carbon::now(),
+            'updated_at' => Carbon::now(),
         ]);
     }
 }

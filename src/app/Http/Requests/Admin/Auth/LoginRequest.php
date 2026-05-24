@@ -6,7 +6,7 @@ namespace App\Http\Requests\Admin\Auth;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class LoginRequest extends FormRequest
+final class LoginRequest extends FormRequest
 {
     public const string EMAIL    = 'email';
     public const string PASSWORD = 'password';

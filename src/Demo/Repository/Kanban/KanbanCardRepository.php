@@ -54,6 +54,7 @@ interface KanbanCardRepository
      * @param int $id 対象カード ID
      * @param string $title 新しいタイトル
      * @param string $body 新しい本文
+     * @return void
      */
     public function updateContent(int $id, string $title, string $body): void;
 
@@ -63,6 +64,7 @@ interface KanbanCardRepository
      * @param int $id 対象カード ID
      * @param KanbanLane $lane 新しい lane
      * @param int $position 新しい position
+     * @return void
      */
     public function updatePosition(int $id, KanbanLane $lane, int $position): void;
 
@@ -70,6 +72,7 @@ interface KanbanCardRepository
      * 論理削除する (deleted_at に現在時刻をセット)。
      *
      * @param int $id 対象カード ID
+     * @return void
      */
     public function softDelete(int $id): void;
 }

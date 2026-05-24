@@ -17,7 +17,7 @@ use Illuminate\Support\ServiceProvider;
  *   - Repository の interface → Impl バインド : RepositoryServiceProvider
  *   - Auth::provider() 等の Laravel boot     : ここ (AppServiceProvider)
  */
-class AppServiceProvider extends ServiceProvider
+final class AppServiceProvider extends ServiceProvider
 {
     public function register(): void
     {

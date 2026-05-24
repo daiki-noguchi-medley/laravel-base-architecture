@@ -58,6 +58,7 @@ interface KanbanService
      *
      * @param int $cardId 対象カード ID
      * @param int $userId 認可チェック用のユーザー ID
+     * @return void
      * @throws \InvalidArgumentException カードが存在しない / 所有者が違う
      */
     public function deleteCard(int $cardId, int $userId): void;

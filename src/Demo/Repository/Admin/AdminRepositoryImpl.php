@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Demo\Repository\Admin;
 
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 final class AdminRepositoryImpl implements AdminRepository
@@ -26,8 +27,8 @@ final class AdminRepositoryImpl implements AdminRepository
             'name'       => $name,
             'email'      => $email,
             'password'   => $hashedPassword,
-            'created_at' => now(),
-            'updated_at' => now(),
+            'created_at' => Carbon::now(),
+            'updated_at' => Carbon::now(),
         ]);
     }
 
@@ -35,7 +36,7 @@ final class AdminRepositoryImpl implements AdminRepository
     {
         DB::table('admin')->where('id', $id)->update([
             'remember_token' => $token,
-            'updated_at'     => now(),
+            'updated_at'     => Carbon::now(),
         ]);
     }
 }

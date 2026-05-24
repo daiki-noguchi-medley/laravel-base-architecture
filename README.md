@@ -1,5 +1,23 @@
 # Laravel Docker 環境
 
+[![Test](https://github.com/NOGUD626/laravel-base-architecture/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/NOGUD626/laravel-base-architecture/actions/workflows/test.yml)
+![Laravel](https://img.shields.io/badge/Laravel-13-FF2D20?logo=laravel&logoColor=white)
+![PHP](https://img.shields.io/badge/PHP-8.4-777BB4?logo=php&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
+![nginx](https://img.shields.io/badge/nginx-1.26-009639?logo=nginx&logoColor=white)
+![Supervisor](https://img.shields.io/badge/Supervisor-PID_1-525252?logo=supervisord&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Compose_v2-2496ED?logo=docker&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-20-5FA04E?logo=nodedotjs&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)
+![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)
+![Bootstrap](https://img.shields.io/badge/Bootstrap-5-7952B3?logo=bootstrap&logoColor=white)
+![htmx](https://img.shields.io/badge/htmx-2-3D72D7?logo=htmx&logoColor=white)
+![Alpine.js](https://img.shields.io/badge/Alpine.js-3-8BC0D0?logo=alpinedotjs&logoColor=white)
+![PHPUnit](https://img.shields.io/badge/PHPUnit-12-3776AB?logo=php&logoColor=white)
+![Locale](https://img.shields.io/badge/Locale-ja__JP.UTF--8-blue)
+![Timezone](https://img.shields.io/badge/TZ-Asia%2FTokyo-blue)
+
 Laravel 開発用の Docker Compose 環境。
 **nginx + PHP-FPM 8.4 + PostgreSQL 16 + Node.js 20 (Vite) + Supervisor (Queue / Scheduler)** 構成。
 タイムゾーンとロケールは **Asia/Tokyo / ja_JP.UTF-8** に統一。

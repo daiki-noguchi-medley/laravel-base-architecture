@@ -97,21 +97,18 @@ gh workflow run aws-ecr-push.yml --ref v0.9.0
 # ブランチを --ref に指定 → ECR の image tag は <branch>-<short-sha> で自動生成
 gh workflow run aws-ecr-push.yml --ref main
 # → ECR には main-a1b2c3d で push される
-
-# ECR tag を明示
-gh workflow run aws-ecr-push.yml --ref main -f ecr_tag=main-latest
-
-# AWS region を変える
-gh workflow run aws-ecr-push.yml --ref v0.9.0 -f aws_region=us-east-1
 ```
+
+> ℹ️ AWS region は workflow YAML の `env.AWS_REGION` で `ap-northeast-1` に固定。
+> 変えたいときは `.github/workflows/aws-ecr-push.yml` を直接編集する (滅多に変えないので input より明示固定が運用上ラク)。
+> ECR tag のカスタム命名も同様、必要なら workflow を fork して `inputs.ecr_tag` を足す方針。
 
 ### GitHub Web UI から
 
 1. <https://github.com/NOGUD626/laravel-base-architecture/actions/workflows/aws-ecr-push.yml> を開く
 2. 「Run workflow」を押す
 3. **「Use workflow from」**で対象ブランチ or tag を選択 (`Tags` タブで `v*` も選べる)
-4. (任意) `ecr_tag` / `aws_region` を入力
-4. 「Run workflow」を確定
+4. 「Run workflow」を確定 (他の入力欄はない)
 
 ### 結果確認
 
@@ -134,11 +131,10 @@ aws ecr describe-images \
 
 ## ECR tag の命名規則
 
-| ref の種類 | 自動生成 ECR tag | 上書き可? | 用途 |
+| ref の種類 | ECR tag | 上書き可? | 用途 |
 |---|---|---|---|
-| tag (`v0.7.0` 等、`v` + 数字始まり) | そのまま (`v0.7.0`) | 不可 (IMMUTABLE) | **リリース版**: 1 回だけ push 可、後から差し替え不可 |
+| tag (`v0.7.0` 等) | そのまま (`v0.7.0`) | 不可 (IMMUTABLE) | **リリース版**: 1 回だけ push 可、後から差し替え不可 |
 | ブランチ (`main` / `feature/xxx`) | `<branch>-<short-sha>` (例: `main-a1b2c3d`) | 不可 (commit が違えば SHA が変わる) | **検証版**: commit ごとにユニーク tag |
-| `inputs.ecr_tag` 明示 | 入力された文字列 | 不可 (IMMUTABLE) | **意図的にカスタム命名** したい場合 |
 
 > ⚠️ ECR が `IMMUTABLE` 設定なので、**同じ tag に 2 回 push しようとすると失敗する**。
 > 例: `main-a1b2c3d` で push 済みの状態で同じ commit から再 push すると `ImageAlreadyExistsException`。
@@ -162,7 +158,7 @@ aws ecr describe-images \
 
 ### `ImageAlreadyExistsException` (同じ tag を再 push)
 
-→ ECR が IMMUTABLE 設定。新しい tag を `inputs.ecr_tag` で指定するか、`v0.7.1` のように bump する。
+→ ECR が IMMUTABLE 設定。新しい commit を push してから workflow を起動するか (`<branch>-<short-sha>` は SHA が変わるので別 tag になる)、リリースなら `v0.7.1` のように bump する。
    開発中に頻繁に上書きしたいなら `infrastructure/cdk/lib/ecr-stack.ts` の `immutableTags: false` に変更して `cdk deploy` で MUTABLE に。
 
 ### `docker build` がコケる (composer install / npm install で network エラー)

@@ -3,34 +3,22 @@ name: ECR push
 # 指定したブランチ or tag の HEAD で docker image をビルドし、ECR に push する。
 # - workflow_dispatch 専用 (自動 push はしない、人が明示的にリリースする)
 # - 起動時の "Use workflow from" で **GitHub UI 標準のブランチ / tag セレクタ** から選ぶ
-#   → workflow ファイル側で inputs.ref を持たない (二重指定を避ける)
 # - ECR 側の image tag は github.ref_type / github.ref_name から自動生成:
 #     - tag (v0.7.0 等)     → そのまま (v0.7.0)
 #     - ブランチ (main 等)  → <branch>-<short-sha> (例: main-a1b2c3d)
-#     - inputs.ecr_tag を明示すれば優先される
+# - AWS region は env.AWS_REGION で固定 (変えるときは workflow ファイル自体を編集)
 #
 # 前提:
-#   - infrastructure/aws-oidc/ で GitHubActionsRole 作成済み (sub claim が緩い設定なら任意 ref OK)
+#   - infrastructure/aws-oidc/ で GitHubActionsRole 作成済み
 #   - infrastructure/cdk/ で EcrStack deploy 済み (repository: laravel-base-architecture)
 #   - repository variable AWS_IAM_ROLE_ARN が設定済み
 #
 # 使い方:
-#   gh workflow run aws-ecr-push.yml --ref v0.9.0
-#   gh workflow run aws-ecr-push.yml --ref main -f ecr_tag=main-latest
+#   gh workflow run aws-ecr-push.yml --ref v0.7.0
+#   gh workflow run aws-ecr-push.yml --ref main
 
 on:
   workflow_dispatch:
-    inputs:
-      ecr_tag:
-        description: 'ECR 側の image tag (省略時は自動生成: tag はそのまま / ブランチは <branch>-<short-sha>)'
-        required: false
-        default: ''
-        type: string
-      aws_region:
-        description: 'AWS region'
-        required: false
-        default: 'ap-northeast-1'
-        type: string
 
 # OIDC token 発行に必須
 permissions:
@@ -38,6 +26,7 @@ permissions:
   contents: read
 
 env:
+  AWS_REGION: ap-northeast-1
   ECR_REPOSITORY: laravel-base-architecture
   DOCKERFILE_PATH: docker/php/Dockerfile
   DOCKER_CONTEXT: docker/php
@@ -62,10 +51,7 @@ jobs:
       - name: ECR tag を決定
         id: tag
         run: |
-          if [ -n "${{ inputs.ecr_tag }}" ]; then
-            ECR_TAG="${{ inputs.ecr_tag }}"
-            echo "==> inputs.ecr_tag を採用: $ECR_TAG"
-          elif [ "${{ github.ref_type }}" = "tag" ]; then
+          if [ "${{ github.ref_type }}" = "tag" ]; then
             ECR_TAG="${{ github.ref_name }}"
             echo "==> tag からの起動なのでそのまま使用: $ECR_TAG"
           else
@@ -82,7 +68,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_IAM_ROLE_ARN }}
-          aws-region: ${{ inputs.aws_region }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: ECR にログイン
         id: ecr-login

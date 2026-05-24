@@ -26,6 +26,10 @@ x-php-app: &php-app
     DB_USERNAME: laravel
     DB_PASSWORD: secret
     QUEUE_CONNECTION: database
+    # コンテナ内のログは全部 stderr に集約 (AWS では Fluent Bit (firelens) サイドカーで
+    # CloudWatch Logs / S3 / OpenSearch へ転送する想定)。
+    LOG_CHANNEL: stderr
+    LOG_STACK: stderr
   depends_on:
     - db
   networks:

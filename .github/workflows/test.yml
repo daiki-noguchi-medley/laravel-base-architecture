@@ -1,0 +1,70 @@
+name: Test
+
+# PR / main への push のたびに Laravel のテストを実行
+# - 失敗したら PR を blocking (Required status check に登録できる)
+# - phpunit.xml は SQLite in-memory なので外部 DB service は不要
+# - Vite build まで行うのは @vite() ディレクティブが manifest を参照するため
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  laravel-test:
+    name: PHPUnit (Laravel test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    # Laravel プロジェクトは src/ 配下
+    defaults:
+      run:
+        working-directory: src
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: pdo, pdo_pgsql, pdo_sqlite, mbstring, gd, zip, bcmath, intl, opcache, exif, pcntl
+          coverage: none
+          tools: composer:v2
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: src/package-lock.json
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: src/vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('src/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      # post-autoload-dump で artisan を呼ぶ前に .env が必要なので、scripts はあとで実行
+      - name: Composer install
+        run: composer install --no-interaction --prefer-dist --no-progress --no-scripts
+
+      - name: Setup .env (テスト用は phpunit.xml が SQLite in-memory に上書きする)
+        run: |
+          cp .env.example .env
+          php artisan key:generate --ansi
+
+      - name: Composer dump-autoload + package discover
+        run: |
+          composer dump-autoload --optimize
+          php artisan package:discover --ansi
+
+      - name: NPM install
+        run: npm install --legacy-peer-deps --no-audit --no-fund
+
+      - name: NPM build (Vite manifest を生成、Blade @vite が参照)
+        run: npm run build
+
+      - name: PHPUnit
+        run: php artisan test --colors=always

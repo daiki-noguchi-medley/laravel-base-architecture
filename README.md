@@ -1,5 +1,23 @@
 # Laravel Docker 環境
 
+[![Test](https://github.com/NOGUD626/laravel-base-architecture/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/NOGUD626/laravel-base-architecture/actions/workflows/test.yml)
+![Laravel](https://img.shields.io/badge/Laravel-13-FF2D20?logo=laravel&logoColor=white)
+![PHP](https://img.shields.io/badge/PHP-8.4-777BB4?logo=php&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
+![nginx](https://img.shields.io/badge/nginx-1.26-009639?logo=nginx&logoColor=white)
+![Supervisor](https://img.shields.io/badge/Supervisor-PID_1-525252?logo=supervisord&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Compose_v2-2496ED?logo=docker&logoColor=white)
+![Node.js](https://img.shields.io/badge/Node.js-20-5FA04E?logo=nodedotjs&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-8-646CFF?logo=vite&logoColor=white)
+![React](https://img.shields.io/badge/React-18-61DAFB?logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?logo=typescript&logoColor=white)
+![Bootstrap](https://img.shields.io/badge/Bootstrap-5-7952B3?logo=bootstrap&logoColor=white)
+![htmx](https://img.shields.io/badge/htmx-2-3D72D7?logo=htmx&logoColor=white)
+![Alpine.js](https://img.shields.io/badge/Alpine.js-3-8BC0D0?logo=alpinedotjs&logoColor=white)
+![PHPUnit](https://img.shields.io/badge/PHPUnit-12-3776AB?logo=php&logoColor=white)
+![Locale](https://img.shields.io/badge/Locale-ja__JP.UTF--8-blue)
+![Timezone](https://img.shields.io/badge/TZ-Asia%2FTokyo-blue)
+
 Laravel 開発用の Docker Compose 環境。
 **nginx + PHP-FPM 8.4 + PostgreSQL 16 + Node.js 20 (Vite) + Supervisor (Queue / Scheduler)** 構成。
 タイムゾーンとロケールは **Asia/Tokyo / ja_JP.UTF-8** に統一。
@@ -187,6 +205,52 @@ docker compose exec app php artisan migrate
 
 ---
 
+## 動作確認 (テストアカウント)
+
+`UserSeeder` / `AdminSeeder` が以下のテストアカウントを投入します
+(`docker compose exec app php artisan db:seed --force`)。
+
+| 画面 | URL | テストアカウント | 技術スタック |
+|---|---|---|---|
+| **ユーザー画面** | <http://localhost:8080/login> | `user@example.com` / `password` | Blade + htmx + Alpine.js (CDN) |
+| **管理画面** | <http://localhost:8080/admin/login> | `admin@example.com` / `password` | Vite + React 18 + TypeScript + Bootstrap 5 + FontAwesome |
+
+### ユーザー画面で試せること
+
+- `user@example.com` / `password` でログイン → `/dashboard` へリダイレクト
+- ダッシュボードで:
+  - **htmx デモ** — 「サーバー時刻取得」ボタン (`hx-get` で `/api/server-time` を fetch、`hx-target` で innerHTML 差し替え)
+  - **Alpine.js デモ** — カウンタ (`x-data` + `x-text` + `@click`)
+  - パスワード入力欄の「表示/隠す」トグル (`x-model`)
+
+### 管理画面で試せること
+
+- `admin@example.com` / `password` でログイン → `/admin` へリダイレクト
+- React Router で `/admin/login` → `/admin` を SPA 内ナビゲーション
+- Bootstrap の navbar / card / button
+- FontAwesome アイコン (`<FontAwesomeIcon icon={faGauge} />` 等)
+- `<meta name="csrf-token">` を React から読み取って form の `_token` に乗せて POST
+
+### 動作しないときの確認
+
+```bash
+# コンテナがすべて Up か
+docker compose ps
+
+# Vite ビルド成果物があるか
+ls src/public/build/
+# manifest.json と assets/ があれば OK
+# 無ければ: docker compose exec -e HOME=/tmp app npm run build
+
+# DB にテストアカウントが入っているか
+docker compose exec db psql -U laravel laravel -c 'SELECT id, name, email FROM "user"; SELECT id, name, email FROM admin;'
+
+# Laravel ログ (LOG_CHANNEL=stderr なのでファイルではなくコンテナ stdout に出る)
+docker compose logs -f app
+```
+
+---
+
 ## Vite (フロントエンド開発)
 
 Laravel ひな型の `laravel-vite-plugin` をそのまま使う。
@@ -314,99 +378,82 @@ docker compose exec app php artisan queue:flush
 
 ---
 
-## Tinker (デバッグ)
+## Tinker / artisan 確認系コマンド
 
-Laravel の REPL (PsySH ベース)。DB クエリ確認、Job dispatch、config / env の値確認、
-Service / Repository の動作チェックに使う。
+DB の中身を見たり、Service / Repository を DI 経由で叩いたり、Job を dispatch したり、
+ルートや設定値を確認するための **使い方とコマンド一覧は [`docs/tinker.md`](docs/tinker.md)** に集約。
 
-### 起動
+最短だけここに置く:
 
 ```bash
-# 対話モードで起動 (exit / Ctrl+D で抜ける)
+# tinker (対話モード)
 docker compose exec -e HOME=/tmp app php artisan tinker
 
-# 1 コマンド実行 (one-shot)
+# 1 コマンド実行
 docker compose exec -e HOME=/tmp app php artisan tinker --execute='DB::table("user")->count();'
+
+# 最初に打つやつ
+docker compose exec app php artisan about           # バージョン / drivers / cache 状態
+docker compose exec app php artisan route:list      # 全ルート
+docker compose exec app php artisan db:show         # DB 接続情報 + テーブル一覧
+docker compose exec app php artisan schedule:list   # 登録された Schedule
+docker compose exec app php artisan queue:failed    # 失敗 Job
+docker compose exec app php artisan pail            # ログを色付き tail (LOG_CHANNEL=stderr と併用可)
 ```
 
-### よくある用途
+> `HOME=/tmp` を渡しているのは、psysh のヒストリ書込先 (`/var/www/.config/psysh`) に
+> www-data が書けず warning が出るため。
 
-```php
-// ─── DB クエリビルダー ───
-DB::table('user')->where('status', 'active')->get();
-DB::table('user')->where('id', 1)->first();
-DB::table('user')->count();
+---
 
-// ─── Carbon (タイムゾーン確認) ───
-now();                                  // Carbon\Carbon @ Asia/Tokyo
-now()->format('Y-m-d H:i:s T');         // "2026-05-24 14:01:42 JST"
+## ログ集約方針 (全コンテナ stdout/stderr 統一)
 
-// ─── config / env の確認 ───
-config('app.timezone');                 // "Asia/Tokyo"
-config('queue.default');                // "database"
-env('APP_TIMEZONE');                    // "Asia/Tokyo"
+このプロジェクトは **全コンテナのログを stdout/stderr に出す方針** で統一しています。
+AWS ECS では **Fluent Bit (`awsfirelens`) サイドカー** で CloudWatch Logs / S3 / OpenSearch
+等に転送する構成を想定。`storage/logs/*.log` のファイルログには書きません。
 
-// ─── Job を投入 (実 Job クラスで) ───
-\App\Jobs\SendWelcomeMailJob::dispatch(123);
+| コンテナ | ログ出力先 | 設定箇所 |
+|---|---|---|
+| `web` (nginx) | access_log → `/dev/stdout` / error_log → `/dev/stderr` | `docker/nginx/nginx.conf` |
+| `app` (PHP-FPM) | FPM 自体の error_log / access.log / slowlog / worker output 全て stderr | `docker/php/www.conf` |
+| `app` (Laravel) | `php://stderr` | `LOG_CHANNEL=stderr` (docker-compose の environment で上書き) |
+| `job` / `batch` (supervisord) | 各 program の `stdout_logfile=/dev/stdout` `stderr_logfile=/dev/stderr` | `docker/php/supervisord-{job,batch}.conf` |
+| `batch` (cron) | `cron -f -L 4` で stderr、cron job の出力は scheduler-cron.log → `tail -F` で stdout に流す | `docker/php/supervisord-batch.conf` |
+| `db` (PostgreSQL) | `log_destination=stderr` / `logging_collector=off` (公式 image デフォルト) | `docker-compose.yml` (postgres command) |
 
-// ─── DI コンテナから Service / Repository を取り出す ───
-app(\Demo\Service\User\UserService::class)->getActiveUserList();
-app(\Demo\Repository\User\UserRepository::class)->findById(1);
-
-// ─── Route 一覧 ───
-collect(\Route::getRoutes())->map(fn($r) => $r->methods()[0] . ' ' . $r->uri());
-
-// ─── 直近のクエリログ ───
-DB::enableQueryLog();
-DB::table('user')->where('id', 1)->first();
-DB::getQueryLog();                      // 実行された SQL とバインド値
-```
-
-### 注意点
-
-- **クロージャ dispatch は使えない** — `dispatch(function() { ... })` は tinker (eval) では
-  `SerializableClosure` がソースファイルを読めずエラーになる。
-  必ず実 Job クラス (`src/app/Jobs/...`) を作って `MyJob::dispatch()` で投入する
-- **`HOME=/tmp` を必ず付ける** — 付けないと `Writing to directory /var/www/.config/psysh is not allowed.`
-  という warning が出る (動作には影響しないが見栄えが悪い)
-- **本番で直接データ更新はしない** — 開発・調査用に留める。本番のデータ修正は必ず
-  artisan コマンド (`app/Console/Commands/`) を作って履歴に残す形で実行する
-
-### ブラウザリクエスト経由でのデバッグ (dd / dump / logger)
-
-API / 画面リクエストの中身を見たい場合は tinker より `dd()` / `dump()` が早い。
-
-```php
-// Controller / Service / Blade のどこでも
-dd($user);                              // dump して die (レスポンスを止める)
-dump($user);                            // dump して継続 (HTML に出る)
-logger($user);                          // storage/logs/laravel.log に記録
-logger()->info('hit', ['id' => $userId]);
-```
-
-ログを追跡:
+確認:
 
 ```bash
-docker compose exec app tail -f storage/logs/laravel.log
+docker compose logs -f web    # nginx access / error
+docker compose logs -f app    # PHP-FPM + Laravel (LOG_CHANNEL=stderr)
+docker compose logs -f job    # queue:work の出力
+docker compose logs -f batch  # cron daemon + cron-tail (scheduler 出力)
+docker compose logs -f db     # PostgreSQL の query / connection log
 ```
 
-worker (job コンテナ内) のジョブで使うときも `logger()` でログに書けば、上のコマンドで一緒に追える。
+> 詳細は [`docs/tinker.md`](docs/tinker.md) (Laravel ログを `pail` で見る方法) と
+> [`docs/nginx-sidecar.md`](docs/nginx-sidecar.md) (nginx + Fluent Bit 構成の位置づけ) を参照。
 
-### Queue / Job の挙動を確認するワンライナー
+---
 
-```bash
-# 投入直後の jobs テーブル状態
-docker compose exec -T db psql -U laravel -d laravel \
-  -c "SELECT id, queue, attempts, available_at FROM jobs;"
+## ドキュメント
 
-# 失敗したジョブの中身
-docker compose exec -T db psql -U laravel -d laravel \
-  -c "SELECT id, queue, exception FROM failed_jobs ORDER BY id DESC LIMIT 3;"
-
-# supervisor 配下プロセスの稼働確認 (job + batch コンテナ)
-docker compose exec job   supervisorctl status
-docker compose exec batch supervisorctl status
-```
+| ファイル | 内容 |
+|---|---|
+| [`README.md`](README.md) | この文書 (インフラ / セットアップ / 運用) |
+| [`src/README.md`](src/README.md) | Laravel アプリ構造 + 認証フローの解説 |
+| [`CLAUDE.md`](CLAUDE.md) | コーディング規約 (§1〜§8、AI agent 用にも) |
+| [`docs/github-actions.md`](docs/github-actions.md) | GitHub Actions の workflow 解説 + Mermaid シーケンス図 + Secrets / トラブルシューティング |
+| [`docs/testing.md`](docs/testing.md) | テスト規約 + 実行方法 + レイヤー別戦略 (Repository / Service / Controller / VO / Job) |
+| [`docs/htmx-alpine.md`](docs/htmx-alpine.md) | htmx + Alpine.js のクイックリファレンス + 組み合わせパターン + 実例 + ハマりどころ |
+| [`docs/queue.md`](docs/queue.md) | Laravel Queue / Job の使い方 (dispatch / Bus::batch / 失敗処理 / 運用 / テスト) |
+| [`docs/schedule.md`](docs/schedule.md) | Laravel タスクスケジュール (cron daemon + schedule:run、頻度指定、Schedule::call/command/job の使い分け) |
+| [`docs/nginx-sidecar.md`](docs/nginx-sidecar.md) | nginx をサイドカーで持つ理由 (静的配信 / ログ / 圧縮 / ALB+ECS での位置づけ / 代替構成比較) |
+| [`docs/supervisor.md`](docs/supervisor.md) | Supervisor の使い方と運用 (なぜ使うか / conf 構造 / supervisorctl コマンド / job・batch 各コンテナの設定詳細 / ハマりどころ) |
+| [`docs/authentication.md`](docs/authentication.md) | Laravel 認証 (このプロジェクトの session 方式 / Blade と SPA それぞれの Vite plugin / 他方式 (Sanctum / Passport / JWT / Socialite) との比較表) |
+| [`docs/tinker.md`](docs/tinker.md) | Tinker 活用 + artisan 確認系コマンド (Service / Repository を DI 経由で叩く、`about` / `route:list` / `db:show` / `schedule:list` / `pail` 等) |
+| [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md) | PR の書き方ガイド |
+| [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md) | PR テンプレート (自動挿入) |
 
 ---
 

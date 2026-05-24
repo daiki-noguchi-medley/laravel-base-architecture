@@ -42,6 +42,18 @@ return [
             'driver' => 'session',
             'provider' => 'users',
         ],
+
+        // 一般ユーザー用 (Blade + htmx + Alpine.js)
+        'user' => [
+            'driver' => 'session',
+            'provider' => 'user',
+        ],
+
+        // 管理者用 (React SPA、同一オリジン session ベース)
+        'admin' => [
+            'driver' => 'session',
+            'provider' => 'admin',
+        ],
     ],
 
     /*
@@ -67,10 +79,15 @@ return [
             'model' => env('AUTH_MODEL', User::class),
         ],
 
-        // 'users' => [
-        //     'driver' => 'database',
-        //     'table' => 'users',
-        // ],
+        // 一般ユーザー用カスタム Provider (Auth::provider('userauth') で登録)
+        'user' => [
+            'driver' => 'userauth',
+        ],
+
+        // 管理者用カスタム Provider (Auth::provider('adminauth') で登録)
+        'admin' => [
+            'driver' => 'adminauth',
+        ],
     ],
 
     /*

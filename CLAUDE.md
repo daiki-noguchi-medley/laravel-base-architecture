@@ -129,6 +129,8 @@ foreach ($userList as $user) {
 | `proc()` | `processRefund()` |
 | `getUsrCnt()` | `getUserCount()` |
 | `chk()` | `validate...()` / `is...()` / `has...()` |
+| `$userRepo` / `$adminRepo` | `$userRepository` / `$adminRepository` (Repository は省略しない) |
+| `$paymentApi` | `$paymentApiRepository` (型名と一致させる) |
 
 慣用的に許容される略語 (略すのが業界標準のもの):
 
@@ -180,13 +182,80 @@ public function canCancelOrder(): bool;
 
 ```php
 // NG
-$x = $this->userRepo->findById($id);
+$x = $this->userRepository->findById($id);
 foreach ($list as $item) { ... }
 
 // OK
-$activeUser = $this->userRepo->findById($userId);
+$activeUser = $this->userRepository->findById($userId);
 foreach ($pendingOrderList as $pendingOrder) { ... }
 ```
+
+### アクセサ命名のスタイル (Row / Auth / Entity)
+
+クラスの種別ごとに使い分ける。**強制統一はしない**、用途で選ぶ。
+
+#### Row (DTO) — `public readonly` プロパティ基本
+
+データバッグ的な単純表現。シンプルさ優先。
+
+```php
+final readonly class UserRow
+{
+    public function __construct(
+        public int $id,
+        public string $name,
+        public string $email,
+    ) {}
+}
+
+// 使用
+$row->id;
+$row->name;
+```
+
+#### Auth / Entity / ドメインオブジェクト — Laravel スタイル (動詞なし) 基本
+
+`get` プレフィックスは付けない。
+
+```php
+$auth->id();
+$auth->name();
+$auth->email();
+```
+
+bool は `is~ / has~ / can~`:
+
+```php
+$user->isActive();
+$user->hasUnpaidInvoice();
+$order->canBeCancelled();
+```
+
+#### `getXxx()` を使ってよいケース (例外的)
+
+メソッド名だけだと **「何を返すか」が曖昧** / **加工 / 派生 / 計算** が入る場合は `getXxx()` で明示してよい:
+
+```php
+$user->getMaskedEmail();       // ***@example.com に整形
+$user->getDefaultProfile();    // 未設定なら default を返すという意図を明示
+$order->getTotalIncludeTax();  // 計算結果である旨を明示
+```
+
+判断基準:
+- メソッド名 (動詞なし) で **意味が一意に伝わる** → Laravel スタイル
+- メソッド名だけだと **「取得 / 設定 / 計算」のどれか分かりにくい** → `getXxx()` で明示
+
+統一目的のためだけに全部 `getXxx()` にしない (冗長)。逆に、無理して `id()` 形式に詰めない (曖昧)。
+
+#### Laravel / interface 規定はそのまま従う
+
+例: `Authenticatable::getAuthIdentifier()` / `getAuthPassword()` は Laravel 規定なので、
+`get` を付けたまま実装する (ここは自由度なし)。
+
+#### 同一クラス内での混在は OK
+
+`id()` (Laravel スタイル) と `getMaskedEmail()` (getter) が同居して問題ない。
+**用途で使い分ける** のが規約。
 
 ---
 
@@ -194,6 +263,30 @@ foreach ($pendingOrderList as $pendingOrder) { ... }
 
 事業ドメイン単位でパッケージを切り、その中を **ビジネスロジック単位** でフォルダ分割する。
 Service / Repository はそのビジネスロジックフォルダの中に置く。
+
+### データクラスの種別 — 総称は「Model」
+
+このプロジェクトでは以下を **総称して「Model」** と呼ぶ:
+
+| 種別 | 役割 | 配置 | 例 |
+|---|---|---|---|
+| **Row** (DTO) | DB の 1 行を表す。Repository ↔ Service の境界で使う | `Demo/Repository/<Logic>/` | `UserRow` / `AdminRow` |
+| **ViewModel** (DTO) | Blade に渡す | `app/Http/ViewModel/<Domain>/<SubDomain>/` | `DashboardViewModel` |
+| **Resource** (DTO) | HTTP レスポンス整形 (JSON / TSV) | `app/Http/Resource/<Role>/<Entity>/` | `~Resource` (`Arrayable` 直 implements) |
+| **Value Object** | ドメインの値そのもの (不変・等価性・バリデーション含む) | `Demo/<Logic>/ValueObject/` | `Email` / `UserId` / `Money` |
+| **Entity** | ID で識別されるドメインオブジェクト (振る舞いを持つ) | `Demo/<Logic>/Entity/` | `User` / `Order` |
+
+> ⚠️ **Laravel の Eloquent Model (`App\Models\`) とは別物**。
+> このプロジェクトでは Eloquent モデルは使わず (認証は `App\Auth\User\UserAuth` 等の自前 Authenticatable を使う)、
+> `App\Models\User` は Laravel ひな型として残置しているだけ。
+> 「Model = このプロジェクトのデータクラス群の総称」というプロジェクト内用語。
+> 文書や口頭で「Model」と言ったときに Eloquent と紛らわしくないよう注意。
+
+用途で書き分け:
+
+- **Service / Controller で扱う** のは Value Object / Entity / Row
+- **Blade に渡す** のは ViewModel (Row を直渡ししない)
+- **HTTP レスポンスに整形する** のは Resource
 
 ### ディレクトリ構成 (例: `Demo` パッケージ)
 
@@ -318,7 +411,7 @@ Service / Repository 側はそれぞれ 1 メソッド追加するだけ:
 // Demo/Service/User/UserServiceImpl.php
 public function getUserCount(): int
 {
-    return $this->userRepo->count();
+    return $this->userRepository->count();
 }
 
 // Demo/Repository/User/UserRepositoryImpl.php
@@ -444,51 +537,123 @@ use Illuminate\Support\Facades\DB;
 final class OrderServiceImpl implements OrderService
 {
     public function __construct(
-        private readonly OrderRepository $orderRepo,
-        private readonly UserRepository $userRepo,
-        private readonly PaymentApiRepository $paymentApi,
+        private readonly OrderRepository $orderRepository,
+        private readonly UserRepository $userRepository,
+        private readonly PaymentApiRepository $paymentApiRepository,
     ) {}
 
     public function placeOrder(int $userId, int $amount): Order
     {
         // Repository 経由で取得 (DB::table を直接触らない)
-        $user = $this->userRepo->findById($userId)
+        $user = $this->userRepository->findById($userId)
             ?? throw new \InvalidArgumentException("user not found: {$userId}");
 
         // 外部 API も Repository 経由 (Http::post を直接触らない)
-        $payment = $this->paymentApi->charge($user->id, $amount);
+        $payment = $this->paymentApiRepository->charge($user->id, $amount);
 
         // トランザクション境界は Service が握る
         return DB::transaction(function () use ($user, $payment, $amount) {
-            $orderId = $this->orderRepo->insert(/* ... */);
-            return $this->orderRepo->findById($orderId);
+            $orderId = $this->orderRepository->insert(/* ... */);
+            return $this->orderRepository->findById($orderId);
         });
     }
 }
 ```
 
-### DI バインド (`app/Providers/AppServiceProvider.php`)
+### DI バインド (`ServiceServiceProvider` / `RepositoryServiceProvider` に分割)
+
+interface → 実装の binding は **役割別に Provider を分けて集約** する。
+変更が単一ファイルで完結し、レビューしやすい。
+
+```
+app/Providers/
+├── AppServiceProvider.php          boot 処理 (Auth::provider 等の Laravel 統合)
+├── ServiceServiceProvider.php       Service interface → Impl の binding
+└── RepositoryServiceProvider.php    Repository interface → Impl の binding
+```
+
+#### `RepositoryServiceProvider`
 
 ```php
-public function register(): void
-{
-    // User
-    $this->app->bind(
-        \Demo\Service\User\UserService::class,
-        \Demo\Service\User\UserServiceImpl::class,
-    );
-    $this->app->bind(
-        \Demo\Repository\User\UserRepository::class,
-        \Demo\Repository\User\UserRepositoryImpl::class,
-    );
+namespace App\Providers;
 
-    // Payment (本番は Stripe、テストでは fake に差し替え可能)
-    $this->app->bind(
-        \Demo\Repository\Payment\PaymentApiRepository::class,
-        \Demo\Repository\Payment\StripePaymentApiRepository::class,
-    );
+use Demo\Repository\User\UserRepository;
+use Demo\Repository\User\UserRepositoryImpl;
+use Demo\Repository\Payment\PaymentApiRepository;
+use Demo\Repository\Payment\StripePaymentApiRepository;
+use Illuminate\Support\ServiceProvider;
+
+class RepositoryServiceProvider extends ServiceProvider
+{
+    public function register(): void
+    {
+        // --- User ---
+        $this->app->bind(UserRepository::class, UserRepositoryImpl::class);
+
+        // --- Payment (本番は Stripe、テストでは fake に差し替え可能) ---
+        $this->app->bind(PaymentApiRepository::class, StripePaymentApiRepository::class);
+    }
 }
 ```
+
+#### `ServiceServiceProvider`
+
+```php
+namespace App\Providers;
+
+use Demo\Service\User\UserService;
+use Demo\Service\User\UserServiceImpl;
+use Illuminate\Support\ServiceProvider;
+
+class ServiceServiceProvider extends ServiceProvider
+{
+    public function register(): void
+    {
+        // --- User ---
+        $this->app->bind(UserService::class, UserServiceImpl::class);
+    }
+}
+```
+
+#### `AppServiceProvider` (boot 専用)
+
+```php
+namespace App\Providers;
+
+use App\Auth\User\UserAuthProvider;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\ServiceProvider;
+
+class AppServiceProvider extends ServiceProvider
+{
+    public function register(): void
+    {
+        // 空 (interface→Impl binding は ServiceServiceProvider / RepositoryServiceProvider へ)
+    }
+
+    public function boot(): void
+    {
+        Auth::provider('userauth', fn ($app) => $app->make(UserAuthProvider::class));
+    }
+}
+```
+
+#### Provider 登録 (`bootstrap/providers.php`)
+
+```php
+return [
+    // 依存順: Repository → Service → App (Service は Repository に、Auth は両方に依存)
+    RepositoryServiceProvider::class,
+    ServiceServiceProvider::class,
+    AppServiceProvider::class,
+];
+```
+
+#### 鉄則
+
+- 新しい **Repository を追加したら `RepositoryServiceProvider`** に bind 追記
+- 新しい **Service を追加したら `ServiceServiceProvider`** に bind 追記
+- `AppServiceProvider` には interface→Impl の bind を書かない (boot 専用)
 
 ### Controller の役割 (薄く保つ)
 
@@ -610,8 +775,8 @@ use Illuminate\Support\Facades\DB;
 final class OrderServiceImpl implements OrderService
 {
     public function __construct(
-        private readonly OrderRepository $orderRepo,
-        private readonly UserRepository $userRepo,
+        private readonly OrderRepository $orderRepository,
+        private readonly UserRepository $userRepository,
     ) {}
 
     // ↓ interface に PHPDoc を書いているのでここには書かない (IDE が継承表示する)
@@ -620,8 +785,8 @@ final class OrderServiceImpl implements OrderService
         $user = $this->mustGetActiveUser($userId);
 
         return DB::transaction(function () use ($user, $amount) {
-            $orderId = $this->orderRepo->insert(/* ... */);
-            return $this->orderRepo->findById($orderId);
+            $orderId = $this->orderRepository->insert(/* ... */);
+            return $this->orderRepository->findById($orderId);
         });
     }
 
@@ -635,7 +800,7 @@ final class OrderServiceImpl implements OrderService
      */
     private function mustGetActiveUser(int $userId): UserRow
     {
-        $user = $this->userRepo->findById($userId)
+        $user = $this->userRepository->findById($userId)
             ?? throw new \InvalidArgumentException("user not found: {$userId}");
 
         if ($user->status !== UserStatus::ACTIVE) {
@@ -1111,6 +1276,84 @@ class ReservationListResource implements Arrayable
 - 配列引数は PHPDoc で要素型を明示 (`@param Foo[] $list`)
 - 日付は **`CarbonImmutable`** を使う (`Carbon` (可変版) は副作用が出やすい)
 - `RuntimeException` 等で fail-fast (`if ($fp === false)` のような defensive check も guard clause で短く)
+
+### ViewModel (Blade に渡す DTO)
+
+#### 配置と命名
+
+| 項目 | 規約 |
+|---|---|
+| 配置 | `src/app/Http/ViewModel/<Domain>/<SubDomain>/<Name>ViewModel.php` |
+| namespace | `App\Http\ViewModel\<Domain>\<SubDomain>` |
+| クラス名 | `~ViewModel` サフィックス |
+
+#### Blade に渡すデータは ViewModel (object) で渡す
+
+`Auth` オブジェクト / Eloquent モデル / Service の結果型を **Blade に直接渡さない**。
+ViewModel に **詰め替えてから** 渡す。
+
+理由:
+- View は **必要なフィールドだけ** 受け取り、不必要な依存型を持たない (Blade 側のロジック軽減)
+- `$user->name()` (メソッド呼び出し) より `$vm->userName` (プロパティ) のほうが型と意味が読みやすい
+- View 用整形ロジック (日付フォーマット、表示用文字列など) を後から追加しやすい
+
+```php
+// app/Http/ViewModel/User/DashboardViewModel.php
+namespace App\Http\ViewModel\User;
+
+use App\Auth\User\UserAuth;
+
+final readonly class DashboardViewModel
+{
+    public function __construct(
+        public int $userId,
+        public string $userName,
+        public string $userEmail,
+    ) {}
+
+    /**
+     * 認証中の UserAuth から ViewModel を組み立てる。
+     */
+    public static function fromAuth(UserAuth $auth): self
+    {
+        return new self(
+            userId: $auth->id(),
+            userName: $auth->name(),
+            userEmail: $auth->email(),
+        );
+    }
+}
+```
+
+Controller:
+
+```php
+return view('user.dashboard', [
+    'vm' => DashboardViewModel::fromAuth($auth),
+]);
+```
+
+Blade:
+
+```blade
+<h1>ようこそ、{{ $vm->userName }}さん</h1>
+<p>Email: {{ $vm->userEmail }}</p>
+```
+
+#### Resource と ViewModel の使い分け
+
+| 用途 | クラス | 配置 | 役割 |
+|---|---|---|---|
+| HTTP レスポンス (JSON / TSV / 外部 API 応答) | `~Resource` | `App\Http\Resource\` | API 応答の整形 (Arrayable) |
+| Blade テンプレートに渡す | `~ViewModel` | `App\Http\ViewModel\` | View に渡す DTO (object) |
+
+#### 鉄則
+
+- ViewModel は **`final readonly class`**
+- Blade に渡すのは **必ず ViewModel 経由**。Auth / Eloquent モデル / Service の戻り値を Blade に直渡ししない
+- `fromXxx(...)` 等の **static factory** で組み立てる (コンストラクタは値の代入のみ)
+- 値プロパティ中心、メソッドは表示整形が必要なときだけ最小限に
+- React 等の SPA に渡す場合は ViewModel ではなく **Resource (Arrayable)** を使う
 
 ### Controller (Request × Resource × Service)
 

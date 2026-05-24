@@ -456,6 +456,20 @@ docker compose exec batch supervisorctl status
 
 ---
 
+## ドキュメント
+
+| ファイル | 内容 |
+|---|---|
+| [`README.md`](README.md) | この文書 (インフラ / セットアップ / 運用) |
+| [`src/README.md`](src/README.md) | Laravel アプリ構造 + 認証フローの解説 |
+| [`CLAUDE.md`](CLAUDE.md) | コーディング規約 (§1〜§8、AI agent 用にも) |
+| [`docs/github-actions.md`](docs/github-actions.md) | GitHub Actions の workflow 解説 + Mermaid シーケンス図 + Secrets / トラブルシューティング |
+| [`docs/testing.md`](docs/testing.md) | テスト規約 + 実行方法 + レイヤー別戦略 (Repository / Service / Controller / VO / Job) |
+| [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md) | PR の書き方ガイド |
+| [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md) | PR テンプレート (自動挿入) |
+
+---
+
 ## コーディング規約
 
 このリポジトリのコーディング規約は [`CLAUDE.md`](CLAUDE.md) に集約しています。

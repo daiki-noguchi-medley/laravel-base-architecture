@@ -560,28 +560,100 @@ final class OrderServiceImpl implements OrderService
 }
 ```
 
-### DI バインド (`app/Providers/AppServiceProvider.php`)
+### DI バインド (`ServiceServiceProvider` / `RepositoryServiceProvider` に分割)
+
+interface → 実装の binding は **役割別に Provider を分けて集約** する。
+変更が単一ファイルで完結し、レビューしやすい。
+
+```
+app/Providers/
+├── AppServiceProvider.php          boot 処理 (Auth::provider 等の Laravel 統合)
+├── ServiceServiceProvider.php       Service interface → Impl の binding
+└── RepositoryServiceProvider.php    Repository interface → Impl の binding
+```
+
+#### `RepositoryServiceProvider`
 
 ```php
-public function register(): void
-{
-    // User
-    $this->app->bind(
-        \Demo\Service\User\UserService::class,
-        \Demo\Service\User\UserServiceImpl::class,
-    );
-    $this->app->bind(
-        \Demo\Repository\User\UserRepository::class,
-        \Demo\Repository\User\UserRepositoryImpl::class,
-    );
+namespace App\Providers;
 
-    // Payment (本番は Stripe、テストでは fake に差し替え可能)
-    $this->app->bind(
-        \Demo\Repository\Payment\PaymentApiRepository::class,
-        \Demo\Repository\Payment\StripePaymentApiRepository::class,
-    );
+use Demo\Repository\User\UserRepository;
+use Demo\Repository\User\UserRepositoryImpl;
+use Demo\Repository\Payment\PaymentApiRepository;
+use Demo\Repository\Payment\StripePaymentApiRepository;
+use Illuminate\Support\ServiceProvider;
+
+class RepositoryServiceProvider extends ServiceProvider
+{
+    public function register(): void
+    {
+        // --- User ---
+        $this->app->bind(UserRepository::class, UserRepositoryImpl::class);
+
+        // --- Payment (本番は Stripe、テストでは fake に差し替え可能) ---
+        $this->app->bind(PaymentApiRepository::class, StripePaymentApiRepository::class);
+    }
 }
 ```
+
+#### `ServiceServiceProvider`
+
+```php
+namespace App\Providers;
+
+use Demo\Service\User\UserService;
+use Demo\Service\User\UserServiceImpl;
+use Illuminate\Support\ServiceProvider;
+
+class ServiceServiceProvider extends ServiceProvider
+{
+    public function register(): void
+    {
+        // --- User ---
+        $this->app->bind(UserService::class, UserServiceImpl::class);
+    }
+}
+```
+
+#### `AppServiceProvider` (boot 専用)
+
+```php
+namespace App\Providers;
+
+use App\Auth\User\UserAuthProvider;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\ServiceProvider;
+
+class AppServiceProvider extends ServiceProvider
+{
+    public function register(): void
+    {
+        // 空 (interface→Impl binding は ServiceServiceProvider / RepositoryServiceProvider へ)
+    }
+
+    public function boot(): void
+    {
+        Auth::provider('userauth', fn ($app) => $app->make(UserAuthProvider::class));
+    }
+}
+```
+
+#### Provider 登録 (`bootstrap/providers.php`)
+
+```php
+return [
+    // 依存順: Repository → Service → App (Service は Repository に、Auth は両方に依存)
+    RepositoryServiceProvider::class,
+    ServiceServiceProvider::class,
+    AppServiceProvider::class,
+];
+```
+
+#### 鉄則
+
+- 新しい **Repository を追加したら `RepositoryServiceProvider`** に bind 追記
+- 新しい **Service を追加したら `ServiceServiceProvider`** に bind 追記
+- `AppServiceProvider` には interface→Impl の bind を書かない (boot 専用)
 
 ### Controller の役割 (薄く保つ)
 

@@ -1,0 +1,36 @@
+name: '【_auto】Create git tag'
+
+# main に PR がマージされたら自動で git tag を打つ。
+# - ブランチ名が bugfix/* または hotfix/* なら patch (v0.0.X)
+# - それ以外は minor (v0.X.0) を bump
+# 元参考: excite-exblog の同名 workflow
+
+on:
+  pull_request:
+    branches:
+      - main
+    types: [closed]
+
+jobs:
+  build:
+    # merge されたときだけ実行 (close 単体では発火しない)
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    permissions:
+      # tag の push に書き込み権限が必要 (GitHub Actions のデフォルトは read のみ)
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # tag を打つには全 commit 履歴が必要
+          fetch-depth: '0'
+
+      - name: Bump version and push tag
+        uses: anothrNick/github-tag-action@1.73.0
+        id: bump
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEFAULT_BUMP: ${{ ((contains(github.event.pull_request.head.ref, 'bugfix') || contains(github.event.pull_request.head.ref, 'hotfix')) && 'patch') || 'minor' }}
+          WITH_V: true
+          RELEASE_BRANCHES: main
+          INITIAL_VERSION: v0.1.0

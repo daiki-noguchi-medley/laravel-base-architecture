@@ -15,7 +15,7 @@ final class UserAuthServiceImpl implements UserAuthService
 
     public function register(string $name, string $email, string $plainPassword): int
     {
-        return $this->userRepo->insert(
+        return $this->userRepository->insert(
             name: $name,
             email: $email,
             hashedPassword: Hash::make($plainPassword),

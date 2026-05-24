@@ -182,13 +182,80 @@ public function canCancelOrder(): bool;
 
 ```php
 // NG
-$x = $this->userRepo->findById($id);
+$x = $this->userRepository->findById($id);
 foreach ($list as $item) { ... }
 
 // OK
-$activeUser = $this->userRepo->findById($userId);
+$activeUser = $this->userRepository->findById($userId);
 foreach ($pendingOrderList as $pendingOrder) { ... }
 ```
+
+### アクセサ命名のスタイル (Row / Auth / Entity)
+
+クラスの種別ごとに使い分ける。**強制統一はしない**、用途で選ぶ。
+
+#### Row (DTO) — `public readonly` プロパティ基本
+
+データバッグ的な単純表現。シンプルさ優先。
+
+```php
+final readonly class UserRow
+{
+    public function __construct(
+        public int $id,
+        public string $name,
+        public string $email,
+    ) {}
+}
+
+// 使用
+$row->id;
+$row->name;
+```
+
+#### Auth / Entity / ドメインオブジェクト — Laravel スタイル (動詞なし) 基本
+
+`get` プレフィックスは付けない。
+
+```php
+$auth->id();
+$auth->name();
+$auth->email();
+```
+
+bool は `is~ / has~ / can~`:
+
+```php
+$user->isActive();
+$user->hasUnpaidInvoice();
+$order->canBeCancelled();
+```
+
+#### `getXxx()` を使ってよいケース (例外的)
+
+メソッド名だけだと **「何を返すか」が曖昧** / **加工 / 派生 / 計算** が入る場合は `getXxx()` で明示してよい:
+
+```php
+$user->getMaskedEmail();       // ***@example.com に整形
+$user->getDefaultProfile();    // 未設定なら default を返すという意図を明示
+$order->getTotalIncludeTax();  // 計算結果である旨を明示
+```
+
+判断基準:
+- メソッド名 (動詞なし) で **意味が一意に伝わる** → Laravel スタイル
+- メソッド名だけだと **「取得 / 設定 / 計算」のどれか分かりにくい** → `getXxx()` で明示
+
+統一目的のためだけに全部 `getXxx()` にしない (冗長)。逆に、無理して `id()` 形式に詰めない (曖昧)。
+
+#### Laravel / interface 規定はそのまま従う
+
+例: `Authenticatable::getAuthIdentifier()` / `getAuthPassword()` は Laravel 規定なので、
+`get` を付けたまま実装する (ここは自由度なし)。
+
+#### 同一クラス内での混在は OK
+
+`id()` (Laravel スタイル) と `getMaskedEmail()` (getter) が同居して問題ない。
+**用途で使い分ける** のが規約。
 
 ---
 
@@ -320,7 +387,7 @@ Service / Repository 側はそれぞれ 1 メソッド追加するだけ:
 // Demo/Service/User/UserServiceImpl.php
 public function getUserCount(): int
 {
-    return $this->userRepo->count();
+    return $this->userRepository->count();
 }
 
 // Demo/Repository/User/UserRepositoryImpl.php
@@ -454,7 +521,7 @@ final class OrderServiceImpl implements OrderService
     public function placeOrder(int $userId, int $amount): Order
     {
         // Repository 経由で取得 (DB::table を直接触らない)
-        $user = $this->userRepo->findById($userId)
+        $user = $this->userRepository->findById($userId)
             ?? throw new \InvalidArgumentException("user not found: {$userId}");
 
         // 外部 API も Repository 経由 (Http::post を直接触らない)
@@ -462,8 +529,8 @@ final class OrderServiceImpl implements OrderService
 
         // トランザクション境界は Service が握る
         return DB::transaction(function () use ($user, $payment, $amount) {
-            $orderId = $this->orderRepo->insert(/* ... */);
-            return $this->orderRepo->findById($orderId);
+            $orderId = $this->orderRepository->insert(/* ... */);
+            return $this->orderRepository->findById($orderId);
         });
     }
 }
@@ -622,8 +689,8 @@ final class OrderServiceImpl implements OrderService
         $user = $this->mustGetActiveUser($userId);
 
         return DB::transaction(function () use ($user, $amount) {
-            $orderId = $this->orderRepo->insert(/* ... */);
-            return $this->orderRepo->findById($orderId);
+            $orderId = $this->orderRepository->insert(/* ... */);
+            return $this->orderRepository->findById($orderId);
         });
     }
 
@@ -637,7 +704,7 @@ final class OrderServiceImpl implements OrderService
      */
     private function mustGetActiveUser(int $userId): UserRow
     {
-        $user = $this->userRepo->findById($userId)
+        $user = $this->userRepository->findById($userId)
             ?? throw new \InvalidArgumentException("user not found: {$userId}");
 
         if ($user->status !== UserStatus::ACTIVE) {

@@ -22,13 +22,13 @@ final class UserAuthProvider implements UserProvider
 
     public function retrieveById($identifier): ?Authenticatable
     {
-        $row = $this->userRepo->findById((int) $identifier);
+        $row = $this->userRepository->findById((int) $identifier);
         return $row ? new UserAuth($row) : null;
     }
 
     public function retrieveByToken($identifier, $token): ?Authenticatable
     {
-        $row = $this->userRepo->findById((int) $identifier);
+        $row = $this->userRepository->findById((int) $identifier);
         if ($row === null || $row->rememberToken === null) {
             return null;
         }
@@ -40,7 +40,7 @@ final class UserAuthProvider implements UserProvider
 
     public function updateRememberToken(Authenticatable $user, $token): void
     {
-        $this->userRepo->updateRememberToken((int) $user->getAuthIdentifier(), (string) $token);
+        $this->userRepository->updateRememberToken((int) $user->getAuthIdentifier(), (string) $token);
     }
 
     public function retrieveByCredentials(array $credentials): ?Authenticatable
@@ -49,7 +49,7 @@ final class UserAuthProvider implements UserProvider
         if ($email === null) {
             return null;
         }
-        $row = $this->userRepo->findByEmail((string) $email);
+        $row = $this->userRepository->findByEmail((string) $email);
         return $row ? new UserAuth($row) : null;
     }
 

@@ -15,7 +15,7 @@ final class AdminAuthServiceImpl implements AdminAuthService
 
     public function register(string $name, string $email, string $plainPassword): int
     {
-        return $this->adminRepo->insert(
+        return $this->adminRepository->insert(
             name: $name,
             email: $email,
             hashedPassword: Hash::make($plainPassword),

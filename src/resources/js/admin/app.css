@@ -1,0 +1,12 @@
+/* 管理画面の Bootstrap 補完スタイル */
+body {
+    background-color: #f8f9fa;
+}
+
+.navbar {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+#admin-app {
+    min-height: 100vh;
+}

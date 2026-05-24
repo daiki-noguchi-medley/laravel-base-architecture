@@ -1,0 +1,40 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Demo\Repository\Admin;
+
+interface AdminRepository
+{
+    /**
+     * ID で admin を 1 件取得する。
+     *
+     * @param int $id 管理者 ID
+     * @return AdminRow|null 該当管理者 (存在しない場合は null)
+     */
+    public function findById(int $id): ?AdminRow;
+
+    /**
+     * Email で admin を 1 件取得する (認証時の本人特定に使う)。
+     *
+     * @param string $email Email
+     * @return AdminRow|null 該当管理者 (存在しない場合は null)
+     */
+    public function findByEmail(string $email): ?AdminRow;
+
+    /**
+     * 新規管理者を INSERT し、採番された ID を返す。
+     *
+     * @param string $name 表示名
+     * @param string $email Email
+     * @param string $hashedPassword すでに password_hash された値
+     * @return int 採番された ID
+     * @throws \Illuminate\Database\QueryException UNIQUE 制約違反など DB エラー時
+     */
+    public function insert(string $name, string $email, string $hashedPassword): int;
+
+    /**
+     * Remember Me トークンを更新する。
+     */
+    public function updateRememberToken(int $id, ?string $token): void;
+}

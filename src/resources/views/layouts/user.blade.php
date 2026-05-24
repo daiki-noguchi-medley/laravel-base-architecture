@@ -6,11 +6,8 @@
     <title>@yield('title', 'User') | Laravel Base Architecture</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
-    {{-- htmx (CDN) — XHR を HTML 属性で書ける軽量ライブラリ --}}
-    <script src="https://unpkg.com/htmx.org@2.0.4" defer></script>
-
-    {{-- Alpine.js (CDN) — 軽量 reactive (props / state を HTML 属性で) --}}
-    <script src="https://unpkg.com/alpinejs@3.x.x" defer></script>
+    {{-- htmx + Alpine.js (Vite で npm からバンドル、CDN 障害の影響を受けない) --}}
+    @vite(['resources/js/user.js'])
 
     <style>
         body { font-family: system-ui, -apple-system, "Segoe UI", "Hiragino Sans", sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; color: #1a1a1a; }

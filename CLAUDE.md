@@ -264,6 +264,30 @@ $order->getTotalIncludeTax();  // 計算結果である旨を明示
 事業ドメイン単位でパッケージを切り、その中を **ビジネスロジック単位** でフォルダ分割する。
 Service / Repository はそのビジネスロジックフォルダの中に置く。
 
+### データクラスの種別 — 総称は「Model」
+
+このプロジェクトでは以下を **総称して「Model」** と呼ぶ:
+
+| 種別 | 役割 | 配置 | 例 |
+|---|---|---|---|
+| **Row** (DTO) | DB の 1 行を表す。Repository ↔ Service の境界で使う | `Demo/Repository/<Logic>/` | `UserRow` / `AdminRow` |
+| **ViewModel** (DTO) | Blade に渡す | `app/Http/ViewModel/<Domain>/<SubDomain>/` | `DashboardViewModel` |
+| **Resource** (DTO) | HTTP レスポンス整形 (JSON / TSV) | `app/Http/Resource/<Role>/<Entity>/` | `~Resource` (`Arrayable` 直 implements) |
+| **Value Object** | ドメインの値そのもの (不変・等価性・バリデーション含む) | `Demo/<Logic>/ValueObject/` | `Email` / `UserId` / `Money` |
+| **Entity** | ID で識別されるドメインオブジェクト (振る舞いを持つ) | `Demo/<Logic>/Entity/` | `User` / `Order` |
+
+> ⚠️ **Laravel の Eloquent Model (`App\Models\`) とは別物**。
+> このプロジェクトでは Eloquent モデルは使わず (認証は `App\Auth\User\UserAuth` 等の自前 Authenticatable を使う)、
+> `App\Models\User` は Laravel ひな型として残置しているだけ。
+> 「Model = このプロジェクトのデータクラス群の総称」というプロジェクト内用語。
+> 文書や口頭で「Model」と言ったときに Eloquent と紛らわしくないよう注意。
+
+用途で書き分け:
+
+- **Service / Controller で扱う** のは Value Object / Entity / Row
+- **Blade に渡す** のは ViewModel (Row を直渡ししない)
+- **HTTP レスポンスに整形する** のは Resource
+
 ### ディレクトリ構成 (例: `Demo` パッケージ)
 
 ```

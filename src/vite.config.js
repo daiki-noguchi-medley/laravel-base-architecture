@@ -8,6 +8,7 @@
 // エントリ:
 //   - resources/css/app.css           : Laravel 標準 (Tailwind を含む)
 //   - resources/js/app.js             : Laravel 標準
+//   - resources/js/user.js            : ユーザー画面 (htmx + Alpine.js を ローカルバンドル)
 //   - resources/js/admin/app.tsx      : 管理画面 (React + Bootstrap + FontAwesome)
 
 import { defineConfig } from 'vite';
@@ -20,6 +21,7 @@ export default defineConfig({
             input: [
                 'resources/css/app.css',
                 'resources/js/app.js',
+                'resources/js/user.js',
                 'resources/js/admin/app.tsx',
             ],
             refresh: true,

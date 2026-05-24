@@ -465,6 +465,7 @@ docker compose exec batch supervisorctl status
 | [`CLAUDE.md`](CLAUDE.md) | コーディング規約 (§1〜§8、AI agent 用にも) |
 | [`docs/github-actions.md`](docs/github-actions.md) | GitHub Actions の workflow 解説 + Mermaid シーケンス図 + Secrets / トラブルシューティング |
 | [`docs/testing.md`](docs/testing.md) | テスト規約 + 実行方法 + レイヤー別戦略 (Repository / Service / Controller / VO / Job) |
+| [`docs/htmx-alpine.md`](docs/htmx-alpine.md) | htmx + Alpine.js のクイックリファレンス + 組み合わせパターン + 実例 + ハマりどころ |
 | [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md) | PR の書き方ガイド |
 | [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md) | PR テンプレート (自動挿入) |
 

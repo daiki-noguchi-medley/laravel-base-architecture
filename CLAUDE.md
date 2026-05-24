@@ -938,3 +938,214 @@ docker compose exec app php artisan queue:flush
   - `app` = HTTP (php-fpm)。`web` (nginx) と `db` (postgres) はその「サイドカー」
 - **「`batch` コンテナ」と「`Bus::batch` 機能」を混同しない**。
   Bus::batch の Job は `job` コンテナで処理される (`->onQueue('batch')` 不要)
+
+---
+
+## 8. HTTP 層 (Request / Resource)
+
+Controller の入力検証と出力整形は **Request** と **Resource** クラスに切り出す。
+Controller 本体は **FormRequest 検証 + Service 呼び出し + Resource 整形** の 3 ステップだけ。
+
+### Request (FormRequest)
+
+#### 配置と命名
+
+| 項目 | 規約 |
+|---|---|
+| 配置 | `src/app/Http/Requests/<Domain>/<SubDomain>/<Name>Request.php` |
+| namespace | `App\Http\Requests\<Domain>\<SubDomain>` |
+| クラス名 | `~Request` サフィックス (`RegisterRequest`, `UpdateProfileRequest`) |
+
+#### フィールド名は `public const string` で定数化
+
+マジック文字列禁止 (§1)。PHP 8.3+ の型付き定数で宣言する。
+rules() / Controller / Service すべて `SomeRequest::FIELD_NAME` で参照する。
+
+```php
+<?php
+
+namespace App\Http\Requests\User\Examination;
+
+use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
+
+class RegisterRequest extends FormRequest
+{
+    public const string CLINIC_ID            = 'clinic_id';
+    public const string EXAMINATION_STOCK_ID = 'examination_stock_id';
+    public const string RESERVATION_REMARKS  = 'reservation_remarks';
+    public const string NAME                 = 'name';
+    public const string NAME_KANA            = 'name_kana';
+    public const string EMAIL                = 'email';
+    public const string TEL                  = 'tel';
+    public const string IS_MINOR             = 'is_minor';
+    public const string IS_AGREE_TERM        = 'is_agree_term';
+
+    public function authorize(): bool
+    {
+        return true;
+    }
+
+    /**
+     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
+     */
+    public function rules(): array
+    {
+        return [
+            self::CLINIC_ID => [
+                'required',
+                Rule::exists('clinic', 'clinic_id'),
+            ],
+            self::EXAMINATION_STOCK_ID => [
+                'required',
+                'array',
+                Rule::exists('examination_stock', 'examination_stock_id'),
+            ],
+            self::RESERVATION_REMARKS => ['nullable', 'string'],
+            self::NAME                => ['required', 'string'],
+            self::NAME_KANA           => ['required', 'string'],
+            self::EMAIL               => ['required', 'email:strict,dns'],
+            self::TEL                 => ['required', 'string', 'regex:/^\d{10,11}$/'],
+            self::IS_MINOR            => ['nullable', 'boolean'],
+            self::IS_AGREE_TERM       => ['required', 'accepted'],
+        ];
+    }
+}
+```
+
+#### 鉄則
+
+- フィールド名は **`public const string`** で定数化 (型付き定数、大文字スネークケース)
+- `rules()` で **`self::FIELD_NAME`** を使う (キーに文字列直書き禁止)
+- Controller でも **`$request->validated(SomeRequest::FIELD_NAME)`** で参照
+- `authorize()` は **必ず明示** (Laravel デフォルトに任せない)
+- `rules()` に PHPDoc で戻り値型を書く (`array<string, ValidationRule|array<mixed>|string>`)
+
+### Resource
+
+#### 配置と命名
+
+| 項目 | 規約 |
+|---|---|
+| 配置 | `src/app/Http/Resource/<Role>/<Entity>/<Name>Resource.php` |
+| namespace | `App\Http\Resource\<Role>\<Entity>` |
+| クラス名 | `~Resource` サフィックス |
+
+> ⚠️ ディレクトリ / namespace は **単数形 `Resource`** (Laravel 標準の `Resources` 複数形は採らない)。
+> §2 「単数形優先」と一致させる。
+
+#### `Illuminate\Contracts\Support\Arrayable` を直 implements
+
+Laravel の `JsonResource` は使わない。理由:
+
+- `JsonResource` は `$this->resource->foo` のマジックアクセスで型が追えない
+- `Arrayable<TKey, TValue>` を直接 implements して **generics で型を明示**する方が型安全
+- JSON 以外 (TSV / CSV / Excel 等) の出力先にも流用しやすい
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace App\Http\Resource\Admin\ExaminationReservation;
+
+use Carbon\CarbonImmutable;
+use Illuminate\Contracts\Support\Arrayable;
+use Package\Model\Examination\ExaminationReservationProfileModel;
+use RuntimeException;
+
+/**
+ * @implements Arrayable<int, string>
+ */
+class ReservationListResource implements Arrayable
+{
+    /**
+     * @param ExaminationReservationProfileModel[] $examinationReservationProfileModelList
+     */
+    public function __construct(
+        private array $examinationReservationProfileModelList,
+    ) {}
+
+    /**
+     * @return array<int, string>
+     */
+    public function toArray(): array
+    {
+        $outputData = array_map(function (ExaminationReservationProfileModel $model) {
+            $dateTimeList = $model->getExaminationDateTime();
+            $dateTime = implode("\n", array_map(
+                fn (CarbonImmutable $dt) => $dt->format('Y-m-d H:i:s'),
+                $dateTimeList,
+            ));
+            return [
+                $model->getUserName(),
+                $model->getUserEmail(),
+                $model->getUserTel(),
+                $dateTime,
+                // ...
+            ];
+        }, $this->examinationReservationProfileModelList);
+
+        $fp = fopen('php://temp', 'r+');
+        if ($fp === false) {
+            throw new RuntimeException('TSV 書き出しのファイルポインタ生成に失敗しました');
+        }
+        foreach ($outputData as $line) {
+            fputcsv($fp, $line, "\t");
+        }
+        rewind($fp);
+        $tsv = stream_get_contents($fp);
+        fclose($fp);
+
+        return [rtrim($tsv, "\n")];
+    }
+}
+```
+
+#### 鉄則
+
+- `declare(strict_types=1);` 必須 (§6)
+- **`Illuminate\Contracts\Support\Arrayable` を implements** (`JsonResource` は使わない)
+- PHPDoc に **generics 表記**: `@implements Arrayable<int, string>` / `@return array<int, string>`
+- コンストラクタで Model (or リスト) を **private プロパティ昇格** で受け取る
+- 配列引数は PHPDoc で要素型を明示 (`@param Foo[] $list`)
+- 日付は **`CarbonImmutable`** を使う (`Carbon` (可変版) は副作用が出やすい)
+- `RuntimeException` 等で fail-fast (`if ($fp === false)` のような defensive check も guard clause で短く)
+
+### Controller (Request × Resource × Service)
+
+Controller の責務は **3 ステップだけ**:
+
+```php
+use App\Http\Requests\User\Examination\RegisterRequest;
+use App\Http\Resource\User\Examination\RegisterResultResource;
+use Demo\Service\Examination\ExaminationReservationService;
+
+final class ExaminationReservationController
+{
+    public function __construct(
+        private readonly ExaminationReservationService $service,
+    ) {}
+
+    public function register(RegisterRequest $request): RegisterResultResource
+    {
+        // 1. FormRequest が自動検証 (rules() の通り)
+        // 2. Service にプリミティブ / DTO で渡す (フィールド参照は定数経由)
+        $result = $this->service->register(
+            clinicId:           $request->validated(RegisterRequest::CLINIC_ID),
+            examinationStockId: $request->validated(RegisterRequest::EXAMINATION_STOCK_ID),
+            name:               $request->validated(RegisterRequest::NAME),
+            nameKana:           $request->validated(RegisterRequest::NAME_KANA),
+            email:              $request->validated(RegisterRequest::EMAIL),
+            tel:                $request->validated(RegisterRequest::TEL),
+            isMinor:            (bool) $request->validated(RegisterRequest::IS_MINOR),
+            reservationRemarks: $request->validated(RegisterRequest::RESERVATION_REMARKS),
+        );
+
+        // 3. Resource で整形して返す
+        return new RegisterResultResource($result);
+    }
+}
+```
+
+Controller には **ビジネスロジックを 1 行も書かない**。Service への引数を組み立てて、結果を Resource に流すだけ。

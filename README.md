@@ -423,6 +423,7 @@ docker compose exec batch supervisorctl status
 | 5 | 制御フロー (早期 return / match) |
 | 6 | その他 (`declare(strict_types=1)` / `final` / `Carbon::now()`) |
 | 7 | Job / Batch / Schedule (Supervisor 経由運用) |
+| 8 | HTTP 層 (Request / Resource) — フィールド定数化、`Arrayable` 直 implements、Controller は薄く |
 
 `.claude/agents/laravel-code-reviewer.md` に、規約違反を検出する確認専用サブエージェントを置いています。
 コードを書いた後に「規約レビュー」と頼めば走ります。

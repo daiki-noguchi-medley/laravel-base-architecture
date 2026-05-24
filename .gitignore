@@ -1,0 +1,126 @@
+# ============================================================
+# macOS のシステム / 一時ファイル
+# ============================================================
+.DS_Store
+.AppleDouble
+.LSOverride
+._*                                      # AppleDouble の resource fork
+Icon?                                    # Finder カスタムアイコン (末尾 CR)
+.Spotlight-V100
+.Trashes
+.fseventsd
+.TemporaryItems
+.DocumentRevisions-V100
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# ============================================================
+# Windows のシステム / 一時ファイル
+# ============================================================
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.lnk
+*.stackdump
+
+# ============================================================
+# Linux
+# ============================================================
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ============================================================
+# Visual Studio Code
+#   .vscode/ 全体は ignore しつつ、チーム共有したい設定だけ追跡する。
+#   全部 ignore したい場合は下の ! 行を消す。
+# ============================================================
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+!.vscode/*.code-snippets
+.history/                                # Local History 拡張のキャッシュ
+*.vsix                                   # ビルド済み VSCode 拡張
+*.code-workspace
+
+# ============================================================
+# JetBrains 系 (IntelliJ IDEA / PhpStorm / WebStorm / DataGrip / RubyMine 等)
+# ============================================================
+.idea/
+.idea_modules/
+*.iml
+*.iws
+*.ipr
+out/
+cmake-build-*/                           # CLion
+atlassian-ide-plugin.xml
+
+# ============================================================
+# その他のエディタ
+# ============================================================
+.fleet/                                  # JetBrains Fleet
+.zed/                                    # Zed
+.nova/                                   # Panic Nova
+.cursor/                                 # Cursor
+# Vim
+*.swp
+*.swo
+*.swn
+Session.vim
+# Emacs
+\#*\#
+.\#*
+*.elc
+# Sublime Text
+*.sublime-workspace
+*.sublime-project
+# NetBeans
+nbproject/private/
+# Eclipse
+.project
+.classpath
+.settings/
+# その他
+*.bak
+*.tmp
+*.orig
+
+# ============================================================
+# 環境変数 (ホスト固有の UID/GID 等 — .env.example は追跡する)
+# ============================================================
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# ============================================================
+# ログ
+# ============================================================
+*.log
+logs/
+
+# ============================================================
+# Docker
+# ============================================================
+# 名前付き volume を使うので通常は出ないが、万一 bind mount に
+# 切り替えたとき DB データを誤って追跡しないよう保険として記載
+docker/postgres/data/
+docker/**/data/
+
+# ============================================================
+# Laravel プロジェクト本体 (src/) は composer create-project で
+# 生成される src/.gitignore に管理を委譲する。
+# ここでは何も指定しない。
+# ============================================================

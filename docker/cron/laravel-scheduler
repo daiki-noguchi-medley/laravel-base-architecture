@@ -1,0 +1,20 @@
+# Laravel scheduler 用 crontab
+# /etc/cron.d/laravel-scheduler に bind mount される (cron daemon が自動で読む)
+#
+# - MAILTO=""  : Docker コンテナに MTA が無いので cron からのメール通知を抑止
+# - PATH 明示  : cron のデフォルト PATH (/usr/bin:/bin) では php が見つからないことがあるため
+# - 出力先     : /proc/1/fd/{1,2} は supervisord (root) 所有で www-data から書けないため、
+#                storage/logs/scheduler-cron.log に redirect。
+#                この log は supervisor の tail program で stdout に流す (docker logs で見える)。
+#                Schedule 内の Job 出力自体は通常 Laravel ログ (`Log::info()`) に書く運用を推奨。
+#
+# 注意:
+#   - /etc/cron.d/ 配下のファイルは `分 時 日 月 曜 ユーザ コマンド` の 7 フィールド形式
+#     (個人 crontab とは違いユーザ指定が必須)
+#   - ファイル末尾の改行は必須 (Debian cron が厳しい)
+
+MAILTO=""
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# 毎分 schedule:run を呼ぶ (Laravel 公式の cron 設定と等価)
+* * * * * www-data php /var/www/html/artisan schedule:run --verbose --no-interaction >> /var/www/html/storage/logs/scheduler-cron.log 2>&1

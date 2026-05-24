@@ -1,0 +1,142 @@
+# Laravel 開発用 Docker 環境
+# nginx + php-fpm + PostgreSQL + Node.js (Vite) + queue worker + scheduler
+# タイムゾーン: Asia/Tokyo / ロケール: ja_JP.UTF-8
+
+# ------------------------------------------------------------
+# PHP アプリ共通テンプレート (app / worker / scheduler で共有)
+#   build と image を両指定することで 1 回 build した image を使い回す。
+# ------------------------------------------------------------
+x-php-app: &php-app
+  build:
+    context: ./docker/php
+    args:
+      UID: ${UID:-1000}
+      GID: ${GID:-1000}
+  image: laravelarche-app:latest
+  volumes:
+    - ./src:/var/www/html:cached
+  environment:
+    TZ: Asia/Tokyo
+    LANG: ja_JP.UTF-8
+    LC_ALL: ja_JP.UTF-8
+    DB_CONNECTION: pgsql
+    DB_HOST: db
+    DB_PORT: 5432
+    DB_DATABASE: laravel
+    DB_USERNAME: laravel
+    DB_PASSWORD: secret
+    QUEUE_CONNECTION: database
+  depends_on:
+    - db
+  networks:
+    - laravel
+
+services:
+  # ------------------------------------------------------------
+  # Web サーバー (nginx)
+  # ------------------------------------------------------------
+  web:
+    build:
+      context: ./docker/nginx
+    ports:
+      - "8080:80"          # ホストの 8080 → コンテナの 80
+    volumes:
+      - ./src:/var/www/html:cached
+    depends_on:
+      - app
+    environment:
+      TZ: Asia/Tokyo
+    networks:
+      - laravel
+
+  # ------------------------------------------------------------
+  # アプリ (PHP-FPM 8.4 + Node.js 20)
+  #   HTTP リクエストを処理する本体
+  # ------------------------------------------------------------
+  app:
+    <<: *php-app
+    ports:
+      - "5173:5173"        # Vite Dev サーバー (HMR)
+
+  # ------------------------------------------------------------
+  # Job Worker (非同期 Job 全般: queue=default)
+  #   Supervisor 経由で queue:work を 1 プロセス常駐
+  #   通常 dispatch / Bus::batch どちらの Job もここで処理 (queue は default に統一)
+  # ------------------------------------------------------------
+  job:
+    <<: *php-app
+    user: root
+    volumes:
+      - ./src:/var/www/html:cached
+      - ./docker/php/supervisord-job.conf:/etc/supervisor/conf.d/supervisord.conf:ro
+    command:
+      - supervisord
+      - -c
+      - /etc/supervisor/conf.d/supervisord.conf
+      - -n
+    restart: unless-stopped
+    depends_on:
+      - db
+      - app
+
+  # ------------------------------------------------------------
+  # Batch (時刻トリガ / cron daemon)
+  #   - Laravel 公式 Production 推奨パターン (cron + schedule:run)
+  #   - supervisord が PID 1、cron をフォアグラウンドで起動して監視
+  #   - crontab は docker/cron/laravel-scheduler を bind mount
+  #   - ここは Job 本体を実行せず、time trigger で Job を job コンテナへ dispatch
+  #     したり artisan command を直接起動するだけ
+  # ------------------------------------------------------------
+  batch:
+    <<: *php-app
+    user: root
+    volumes:
+      - ./src:/var/www/html:cached
+      - ./docker/php/supervisord-batch.conf:/etc/supervisor/conf.d/supervisord.conf:ro
+      - ./docker/cron/laravel-scheduler:/etc/cron.d/laravel-scheduler:ro
+    command:
+      - supervisord
+      - -c
+      - /etc/supervisor/conf.d/supervisord.conf
+      - -n
+    restart: unless-stopped
+    depends_on:
+      - db
+      - app
+
+  # ------------------------------------------------------------
+  # データベース (PostgreSQL 16)
+  # ------------------------------------------------------------
+  db:
+    build:
+      context: ./docker/postgres
+    # postgres 起動時にタイムゾーンを Asia/Tokyo に固定
+    command:
+      - postgres
+      - -c
+      - timezone=Asia/Tokyo
+      - -c
+      - log_timezone=Asia/Tokyo
+    ports:
+      - "5432:5432"
+    environment:
+      TZ: Asia/Tokyo
+      PGTZ: Asia/Tokyo
+      POSTGRES_DB: laravel
+      POSTGRES_USER: laravel
+      POSTGRES_PASSWORD: secret
+      # 初回 initdb 時のエンコーディング / ロケール
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=ja_JP.UTF-8"
+      LANG: ja_JP.UTF-8
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    networks:
+      - laravel
+
+networks:
+  laravel:
+    driver: bridge
+
+volumes:
+  db-data:
+    driver: local

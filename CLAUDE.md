@@ -1392,3 +1392,86 @@ final class ExaminationReservationController
 ```
 
 Controller には **ビジネスロジックを 1 行も書かない**。Service への引数を組み立てて、結果を Resource に流すだけ。
+
+---
+
+## 9. PR 規約 (マイグレーション編)
+
+`src/database/migrations/` 以下にファイルを **追加 / 変更した PR** は、
+本文に以下の 5 項目を必ず書く。レビューエージェント
+[`.claude/agents/laravel-migration-pr-checker.md`](.claude/agents/laravel-migration-pr-checker.md)
+がこの規約に基づいて自動チェックする。
+
+### 9-1. 追加マイグレーションファイル
+
+差分に入っているマイグレーションファイルのパスを列挙する。
+
+```markdown
+- `src/database/migrations/2026_05_24_220001_create_kanban_card_table.php`
+```
+
+### 9-2. 実行される SQL
+
+`Schema::create(...)` / `Schema::table(...)` から実際に発行される SQL を `sql` コードブロックで貼る。
+PostgreSQL を前提に、`BIGSERIAL` / `TIMESTAMP(0) WITHOUT TIME ZONE` 等の本物の型名で書く。
+
+入手方法:
+- migration ファイルから直接読み解いて手書き (シンプル)
+- migrate 済みのテーブルなら `docker compose exec db psql -U laravel -d laravel -c '\d <table>'` の
+  出力を整形
+- 未 migrate のときは `php artisan migrate --pretend` で発行 SQL を確認
+
+```markdown
+\`\`\`sql
+CREATE TABLE "kanban_card" (
+    "id"       BIGSERIAL    PRIMARY KEY,
+    "user_id"  BIGINT       NOT NULL,
+    ...
+);
+CREATE INDEX "kanban_card_user_id_lane_position_index"
+    ON "kanban_card" ("user_id", "lane", "position");
+\`\`\`
+```
+
+### 9-3. EXPLAIN (実行計画)
+
+新規追加カラム / インデックスが効くべき **主要 SELECT クエリ** について `EXPLAIN ANALYZE` を実行し、
+出力を貼る。確認したいのは:
+
+- `Index Scan` を使えているか (`Seq Scan` に落ちていないか)
+- 想定したインデックスが選ばれているか
+- 実行時間が妥当な範囲か (典型的にはサンプルデータで sub-ms)
+
+```bash
+docker compose exec -T db psql -U laravel -d laravel \
+  -c "EXPLAIN ANALYZE SELECT * FROM kanban_card WHERE user_id = 1 AND deleted_at IS NULL ORDER BY lane, position;"
+```
+
+出力を貼ったうえで、1〜2 行のコメント (どのインデックスが効いたか / Seq Scan ではないことを確認した旨)
+を添える。
+
+### 9-4. down() の reversibility
+
+`down()` がどう書かれているか、安全に巻き戻せるかを書く。
+特に以下のケースは明示すること:
+
+- 外部キー制約を張った / 張らない (張ったなら down() で適切に DROP するか)
+- `DROP COLUMN` で消えるデータがある場合の補足
+- `dropSoftDeletes()` / `dropIfExists()` を使っているなら問題なし
+
+### 9-5. 既存データへの影響
+
+- 既存行に対する挙動 (NULL 埋め / DEFAULT 値 / バックフィル要否)
+- ロック挙動 (`ALTER TABLE ... ADD COLUMN NULL` は PostgreSQL 11+ で
+  メタデータのみ、`NOT NULL DEFAULT ...` は全行書き換えで長時間ロック等)
+- 本番運用時に検討すべき段階的 migration (例: 大規模テーブルなら NULL カラム追加 →
+  バックフィル → NOT NULL 化、を別 PR に分割)
+
+サンプルプロジェクトなので「行数少なく影響なし」と書くだけでも OK だが、
+本番投入を意識した PR では具体的に書くこと。
+
+### 不要な PR
+
+`PULL_REQUEST_TEMPLATE.md` の **「DB マイグレーション」セクションは、マイグレーション差分が無い PR では
+丸ごと削除して構わない**。テンプレが残ったままだとレビューエージェントが「未記入」と扱う可能性があるので、
+不要な PR では「セクションごと削除」 を徹底する。

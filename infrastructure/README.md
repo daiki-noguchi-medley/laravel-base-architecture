@@ -15,13 +15,14 @@
 
 | ディレクトリ | 内容 |
 |---|---|
-| [`aws-oidc/`](./aws-oidc/) | GitHub Actions → AWS の OIDC 接続 (`AssumeRoleWithWebIdentity`) を構築するスクリプト |
+| [`aws-oidc/`](./aws-oidc/) | GitHub Actions → AWS の OIDC 接続 (`AssumeRoleWithWebIdentity`) を構築する shell |
+| [`cdk/`](./cdk/) | AWS CDK プロジェクト (TypeScript)。ECR repository + IAM 権限を CDK で管理 |
 
 将来追加候補:
 
-- `aws-s3-deploy/` — Vite ビルド成果物の S3 sync 用 (バケット作成 + IAM 権限 + workflow)
-- `aws-ecr/` — Docker image push 用 (リポジトリ作成 + IAM 権限)
-- `aws-ecs/` — Fargate デプロイ用 (タスク定義 + サービス作成)
+- `cdk/` 配下に S3 / ECS / RDS / VPC のスタックを追加していく
+- `aws-s3-deploy/` (shell) — 簡易的な S3 sync workflow が必要なとき
+- `aws-ecs/` — ECS service の deploy workflow
 
 ---
 

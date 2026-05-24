@@ -1,0 +1,131 @@
+name: ECR push
+
+# 指定したブランチ or tag の HEAD で docker image をビルドし、ECR に push する。
+# - workflow_dispatch 専用 (自動 push はしない、人が明示的にリリースする)
+# - inputs.ref: ブランチ名 (例: main, feature/xxx) または tag 名 (例: v0.7.0)
+# - inputs.ecr_tag: ECR 側の image tag (省略時は自動生成)
+#     - ref が tag (v* で始まる) → そのまま使う (例: v0.7.0)
+#     - それ以外 (ブランチ)     → <branch>-<short-sha> (例: main-a1b2c3d)
+#
+# 前提:
+#   - infrastructure/aws-oidc/ で GitHubActionsRole 作成済み (sub claim が緩い設定なら任意 ref OK)
+#   - infrastructure/cdk/ で EcrStack deploy 済み (repository: laravel-base-architecture)
+#   - repository variable AWS_IAM_ROLE_ARN が設定済み
+#
+# 使い方:
+#   gh workflow run aws-ecr-push.yml -f ref=v0.7.0
+#   gh workflow run aws-ecr-push.yml -f ref=main -f ecr_tag=main-latest
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'ビルド対象の git ref (ブランチ名 or tag 名)'
+        required: true
+        default: 'main'
+        type: string
+      ecr_tag:
+        description: 'ECR 側の image tag (省略時は自動生成: tag はそのまま / ブランチは <branch>-<short-sha>)'
+        required: false
+        default: ''
+        type: string
+      aws_region:
+        description: 'AWS region'
+        required: false
+        default: 'ap-northeast-1'
+        type: string
+
+# OIDC token 発行に必須
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ECR_REPOSITORY: laravel-base-architecture
+  DOCKERFILE_PATH: docker/php/Dockerfile
+  DOCKER_CONTEXT: docker/php
+
+jobs:
+  build-and-push:
+    name: build & push to ECR
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: 指定 ref を checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+          # tag 表示などのため履歴を取る
+          fetch-depth: 0
+
+      - name: ビルド対象を表示
+        run: |
+          echo "ref:    ${{ inputs.ref }}"
+          echo "commit: $(git rev-parse HEAD)"
+          echo "  tags:    $(git tag --points-at HEAD | tr '\n' ' ')"
+          echo "  branch:  $(git branch -a --contains HEAD | tr '\n' ' ')"
+
+      - name: ECR tag を決定
+        id: tag
+        run: |
+          if [ -n "${{ inputs.ecr_tag }}" ]; then
+            ECR_TAG="${{ inputs.ecr_tag }}"
+            echo "==> inputs.ecr_tag を採用: $ECR_TAG"
+          elif [[ "${{ inputs.ref }}" =~ ^v[0-9] ]]; then
+            ECR_TAG="${{ inputs.ref }}"
+            echo "==> ref が tag なのでそのまま使用: $ECR_TAG"
+          else
+            SHORT_SHA=$(git rev-parse --short HEAD)
+            # ref をファイル名安全に正規化 (/ や _ を - に)
+            SAFE_REF=$(echo "${{ inputs.ref }}" | tr '/_' '--')
+            ECR_TAG="${SAFE_REF}-${SHORT_SHA}"
+            echo "==> ブランチ + short-sha で自動生成: $ECR_TAG"
+          fi
+          echo "ecr_tag=$ECR_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: AWS credentials を OIDC で取得
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_IAM_ROLE_ARN }}
+          aws-region: ${{ inputs.aws_region }}
+
+      - name: ECR にログイン
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: ECR repository URI を組み立て
+        id: ecr-uri
+        run: |
+          REGISTRY="${{ steps.ecr-login.outputs.registry }}"
+          IMAGE_URI="${REGISTRY}/${ECR_REPOSITORY}:${{ steps.tag.outputs.ecr_tag }}"
+          echo "image_uri=$IMAGE_URI" >> "$GITHUB_OUTPUT"
+          echo "==> push 先 image URI: $IMAGE_URI"
+
+      - name: Docker buildx を初期化 (キャッシュ活用用)
+        uses: docker/setup-buildx-action@v3
+
+      - name: build + push
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ env.DOCKER_CONTEXT }}
+          file: ${{ env.DOCKERFILE_PATH }}
+          push: true
+          tags: ${{ steps.ecr-uri.outputs.image_uri }}
+          # GitHub Actions の cache を使ってビルドを高速化
+          cache-from: type=gha,scope=${{ github.workflow }}
+          cache-to: type=gha,mode=max,scope=${{ github.workflow }}
+          # 同じ tag への上書き push を ECR 側 (IMMUTABLE) が拒否するので、
+          # provenance を付けて image 履歴を残す
+          provenance: true
+
+      - name: 完了サマリ
+        run: |
+          echo "### ECR push 完了" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| 項目 | 値 |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| ref | \`${{ inputs.ref }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| commit | \`$(git rev-parse HEAD)\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| ECR tag | \`${{ steps.tag.outputs.ecr_tag }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| image URI | \`${{ steps.ecr-uri.outputs.image_uri }}\` |" >> "$GITHUB_STEP_SUMMARY"

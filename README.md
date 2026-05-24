@@ -106,6 +106,11 @@ bind mount する `supervisord-*.conf` だけが違う。
 │   │   └── laravel-scheduler          batch コンテナの /etc/cron.d/ に bind mount される crontab
 │   └── postgres/
 │       └── Dockerfile            ja_JP.UTF-8 + Asia/Tokyo
+├── docs/                         インフラ / Laravel 機能 / 開発ツールのドキュメント
+│   ├── *.md                      Laravel 機能 / 開発系 (authentication / queue / schedule / testing / tinker 等)
+│   └── infra/*.md                インフラ / CI / AWS 系 (nginx-sidecar / supervisor / github-actions / oidc-aws / oidc-aws-cli)
+├── infrastructure/               インフラ構築用シェルスクリプト集 (実行可能)
+│   └── aws-oidc/                 GitHub Actions → AWS の OIDC 接続構築 (01〜04 + 99-cleanup の番号付き shell)
 └── src/                          ← Laravel 本体
     ├── app/
     │   ├── Http/{Controllers, Requests, Resources}/

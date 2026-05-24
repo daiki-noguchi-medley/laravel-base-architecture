@@ -187,6 +187,52 @@ docker compose exec app php artisan migrate
 
 ---
 
+## 動作確認 (テストアカウント)
+
+`UserSeeder` / `AdminSeeder` が以下のテストアカウントを投入します
+(`docker compose exec app php artisan db:seed --force`)。
+
+| 画面 | URL | テストアカウント | 技術スタック |
+|---|---|---|---|
+| **ユーザー画面** | <http://localhost:8080/login> | `user@example.com` / `password` | Blade + htmx + Alpine.js (CDN) |
+| **管理画面** | <http://localhost:8080/admin/login> | `admin@example.com` / `password` | Vite + React 18 + TypeScript + Bootstrap 5 + FontAwesome |
+
+### ユーザー画面で試せること
+
+- `user@example.com` / `password` でログイン → `/dashboard` へリダイレクト
+- ダッシュボードで:
+  - **htmx デモ** — 「サーバー時刻取得」ボタン (`hx-get` で `/api/server-time` を fetch、`hx-target` で innerHTML 差し替え)
+  - **Alpine.js デモ** — カウンタ (`x-data` + `x-text` + `@click`)
+  - パスワード入力欄の「表示/隠す」トグル (`x-model`)
+
+### 管理画面で試せること
+
+- `admin@example.com` / `password` でログイン → `/admin` へリダイレクト
+- React Router で `/admin/login` → `/admin` を SPA 内ナビゲーション
+- Bootstrap の navbar / card / button
+- FontAwesome アイコン (`<FontAwesomeIcon icon={faGauge} />` 等)
+- `<meta name="csrf-token">` を React から読み取って form の `_token` に乗せて POST
+
+### 動作しないときの確認
+
+```bash
+# コンテナがすべて Up か
+docker compose ps
+
+# Vite ビルド成果物があるか
+ls src/public/build/
+# manifest.json と assets/ があれば OK
+# 無ければ: docker compose exec -e HOME=/tmp app npm run build
+
+# DB にテストアカウントが入っているか
+docker compose exec db psql -U laravel laravel -c 'SELECT id, name, email FROM "user"; SELECT id, name, email FROM admin;'
+
+# Laravel ログ
+docker compose exec app tail -30 storage/logs/laravel.log
+```
+
+---
+
 ## Vite (フロントエンド開発)
 
 Laravel ひな型の `laravel-vite-plugin` をそのまま使う。

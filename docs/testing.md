@@ -263,7 +263,7 @@ public function test_1(): void
 ## CI で走らせる (将来追加)
 
 GitHub Actions で push / PR ごとに `php artisan test` を走らせるなら、
-`.github/workflows/test.yml` を新規作成する。詳細は [`github-actions.md`](./github-actions.md) を参照。
+`.github/workflows/test.yml` を新規作成する。詳細は [`infra/github-actions.md`](./infra/github-actions.md) を参照。
 
 現状は未実装 (必要になった時点で追加)。
 

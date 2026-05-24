@@ -261,7 +261,7 @@ GitHub Actions の **「AWS OIDC 接続テスト」** workflow を手動起動:
 
 ## 関連ドキュメント
 
-- [docs/github-actions.md](github-actions.md) — workflow 全般の解説
-- [.github/workflows/aws-oidc-connection-test.yml](../.github/workflows/aws-oidc-connection-test.yml) — 疎通確認 workflow 実体
+- [docs/infra/github-actions.md](github-actions.md) — workflow 全般の解説
+- [.github/workflows/aws-oidc-connection-test.yml](../../.github/workflows/aws-oidc-connection-test.yml) — 疎通確認 workflow 実体
 - AWS 公式: <https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_create_for-idp_oidc.html>
 - GitHub 公式: <https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect>

@@ -6,7 +6,7 @@
 
 | 名前 | ファイル | 発火条件 | 役割 |
 |---|---|---|---|
-| **`【_auto】Create git tag`** | [`.github/workflows/create_git_tag.yml`](../.github/workflows/create_git_tag.yml) | `main` への PR が **merge** されたとき | 自動 version bump + tag push + Slack 通知 |
+| **`【_auto】Create git tag`** | [`.github/workflows/create_git_tag.yml`](../../.github/workflows/create_git_tag.yml) | `main` への PR が **merge** されたとき | 自動 version bump + tag push + Slack 通知 |
 
 ---
 

@@ -291,14 +291,14 @@ slowlog = /proc/self/fd/2     ; stdout
 
 | ファイル | 役割 |
 |---|---|
-| [`docker-compose.yml`](../docker-compose.yml) の `web` サービス | コンテナ定義 |
-| [`docker/nginx/Dockerfile`](../docker/nginx/Dockerfile) | Alpine 公式 nginx + brotli モジュール |
-| [`docker/nginx/nginx.conf`](../docker/nginx/nginx.conf) | main config (gzip / brotli / log_format) |
-| [`docker/nginx/default.conf`](../docker/nginx/default.conf) | vhost (root / fastcgi_pass / 静的 long cache) |
-| [`docker/nginx/security-headers.conf`](../docker/nginx/security-headers.conf) | セキュリティヘッダ snippet |
+| [`docker-compose.yml`](../../docker-compose.yml) の `web` サービス | コンテナ定義 |
+| [`docker/nginx/Dockerfile`](../../docker/nginx/Dockerfile) | Alpine 公式 nginx + brotli モジュール |
+| [`docker/nginx/nginx.conf`](../../docker/nginx/nginx.conf) | main config (gzip / brotli / log_format) |
+| [`docker/nginx/default.conf`](../../docker/nginx/default.conf) | vhost (root / fastcgi_pass / 静的 long cache) |
+| [`docker/nginx/security-headers.conf`](../../docker/nginx/security-headers.conf) | セキュリティヘッダ snippet |
 
 ## 関連 doc
 
-- 圧縮詳細 (gzip / Brotli): [`../docker/nginx/nginx.conf`](../docker/nginx/nginx.conf) のコメント
-- インフラ全体: [`../README.md`](../README.md)
-- 規約: [`../CLAUDE.md`](../CLAUDE.md)
+- 圧縮詳細 (gzip / Brotli): [`../docker/nginx/nginx.conf`](../../docker/nginx/nginx.conf) のコメント
+- インフラ全体: [`../README.md`](../../README.md)
+- 規約: [`../CLAUDE.md`](../../CLAUDE.md)

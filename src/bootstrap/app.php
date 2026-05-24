@@ -22,17 +22,18 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         // 未認証時のリダイレクト先をパスに応じて振り分ける
-        //   /admin/* → admin.login
-        //   それ以外 → user.login
+        //   /admin および /admin/* → admin.login
+        //   それ以外               → user.login
+        // (`admin/*` だけだと `/admin` 単体 (末尾スラッシュなし) がマッチしないので両方指定)
         $middleware->redirectGuestsTo(
-            fn (Request $request) => $request->is('admin/*')
+            fn (Request $request) => $request->is('admin', 'admin/*')
                 ? route('admin.login')
                 : route('user.login')
         );
 
         // 認証済みユーザーが guest middleware 配下にアクセスしたときのリダイレクト先
         $middleware->redirectUsersTo(
-            fn (Request $request) => $request->is('admin/*')
+            fn (Request $request) => $request->is('admin', 'admin/*')
                 ? '/admin'
                 : '/dashboard'
         );

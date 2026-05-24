@@ -4,10 +4,10 @@
 
 @section('content')
 <div class="card">
-    <h1>ようこそ、{{ $user->name() }}さん</h1>
+    <h1>ようこそ、{{ $vm->userName }}さん</h1>
     <p>
-        <strong>Email:</strong> {{ $user->email() }}<br>
-        <strong>User ID:</strong> {{ $user->id() }}
+        <strong>Email:</strong> {{ $vm->userEmail }}<br>
+        <strong>User ID:</strong> {{ $vm->userId }}
     </p>
 
     <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid #eee;">

@@ -1112,6 +1112,84 @@ class ReservationListResource implements Arrayable
 - 日付は **`CarbonImmutable`** を使う (`Carbon` (可変版) は副作用が出やすい)
 - `RuntimeException` 等で fail-fast (`if ($fp === false)` のような defensive check も guard clause で短く)
 
+### ViewModel (Blade に渡す DTO)
+
+#### 配置と命名
+
+| 項目 | 規約 |
+|---|---|
+| 配置 | `src/app/Http/ViewModel/<Domain>/<SubDomain>/<Name>ViewModel.php` |
+| namespace | `App\Http\ViewModel\<Domain>\<SubDomain>` |
+| クラス名 | `~ViewModel` サフィックス |
+
+#### Blade に渡すデータは ViewModel (object) で渡す
+
+`Auth` オブジェクト / Eloquent モデル / Service の結果型を **Blade に直接渡さない**。
+ViewModel に **詰め替えてから** 渡す。
+
+理由:
+- View は **必要なフィールドだけ** 受け取り、不必要な依存型を持たない (Blade 側のロジック軽減)
+- `$user->name()` (メソッド呼び出し) より `$vm->userName` (プロパティ) のほうが型と意味が読みやすい
+- View 用整形ロジック (日付フォーマット、表示用文字列など) を後から追加しやすい
+
+```php
+// app/Http/ViewModel/User/DashboardViewModel.php
+namespace App\Http\ViewModel\User;
+
+use App\Auth\User\UserAuth;
+
+final readonly class DashboardViewModel
+{
+    public function __construct(
+        public int $userId,
+        public string $userName,
+        public string $userEmail,
+    ) {}
+
+    /**
+     * 認証中の UserAuth から ViewModel を組み立てる。
+     */
+    public static function fromAuth(UserAuth $auth): self
+    {
+        return new self(
+            userId: $auth->id(),
+            userName: $auth->name(),
+            userEmail: $auth->email(),
+        );
+    }
+}
+```
+
+Controller:
+
+```php
+return view('user.dashboard', [
+    'vm' => DashboardViewModel::fromAuth($auth),
+]);
+```
+
+Blade:
+
+```blade
+<h1>ようこそ、{{ $vm->userName }}さん</h1>
+<p>Email: {{ $vm->userEmail }}</p>
+```
+
+#### Resource と ViewModel の使い分け
+
+| 用途 | クラス | 配置 | 役割 |
+|---|---|---|---|
+| HTTP レスポンス (JSON / TSV / 外部 API 応答) | `~Resource` | `App\Http\Resource\` | API 応答の整形 (Arrayable) |
+| Blade テンプレートに渡す | `~ViewModel` | `App\Http\ViewModel\` | View に渡す DTO (object) |
+
+#### 鉄則
+
+- ViewModel は **`final readonly class`**
+- Blade に渡すのは **必ず ViewModel 経由**。Auth / Eloquent モデル / Service の戻り値を Blade に直渡ししない
+- `fromXxx(...)` 等の **static factory** で組み立てる (コンストラクタは値の代入のみ)
+- 値プロパティ中心、メソッドは表示整形が必要なときだけ最小限に
+- React 等の SPA に渡す場合は ViewModel ではなく **Resource (Arrayable)** を使う
+
 ### Controller (Request × Resource × Service)
 
 Controller の責務は **3 ステップだけ**:

@@ -8,23 +8,21 @@ use Illuminate\Support\Facades\DB;
 
 final class AdminRepositoryImpl implements AdminRepository
 {
-    private const string TABLE = 'admin';
-
     public function findById(int $id): ?AdminRow
     {
-        $row = DB::table(self::TABLE)->where('id', $id)->first();
+        $row = DB::table('admin')->where('id', $id)->first();
         return $row ? AdminRow::fromStdClass($row) : null;
     }
 
     public function findByEmail(string $email): ?AdminRow
     {
-        $row = DB::table(self::TABLE)->where('email', $email)->first();
+        $row = DB::table('admin')->where('email', $email)->first();
         return $row ? AdminRow::fromStdClass($row) : null;
     }
 
     public function insert(string $name, string $email, string $hashedPassword): int
     {
-        return (int) DB::table(self::TABLE)->insertGetId([
+        return (int) DB::table('admin')->insertGetId([
             'name'       => $name,
             'email'      => $email,
             'password'   => $hashedPassword,
@@ -35,7 +33,7 @@ final class AdminRepositoryImpl implements AdminRepository
 
     public function updateRememberToken(int $id, ?string $token): void
     {
-        DB::table(self::TABLE)->where('id', $id)->update([
+        DB::table('admin')->where('id', $id)->update([
             'remember_token' => $token,
             'updated_at'     => now(),
         ]);

@@ -462,6 +462,7 @@ docker compose logs -f db     # PostgreSQL の query / connection log
 | [`docs/authentication.md`](docs/authentication.md) | Laravel 認証 (このプロジェクトの session 方式 / Blade と SPA それぞれの Vite plugin / 他方式 (Sanctum / Passport / JWT / Socialite) との比較表) |
 | [`docs/tinker.md`](docs/tinker.md) | Tinker 活用 + artisan 確認系コマンド (Service / Repository を DI 経由で叩く、`about` / `route:list` / `db:show` / `schedule:list` / `pail` 等) |
 | [`docs/infra/oidc-aws.md`](docs/infra/oidc-aws.md) | GitHub Actions → AWS の OIDC 接続セットアップ (長期 access key を置かず短期 token で assume する手順 / AWS Console での Identity Provider・IAM Role 作成 / Trust policy の sub claim 設計) |
+| [`docs/infra/oidc-aws-cli.md`](docs/infra/oidc-aws-cli.md) | 上記の **AWS CLI 版** (コピペで動く構築手順)。`aws iam create-open-id-connect-provider` / `aws iam create-role` / `gh variable set` / `gh workflow run` を順に並べた手順書 |
 | [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md) | PR の書き方ガイド |
 | [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md) | PR テンプレート (自動挿入) |
 

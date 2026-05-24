@@ -12,6 +12,14 @@
 
     <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid #eee;">
 
+    <h2>Kanban ボード</h2>
+    <p>カードをドラッグして 4 レーン (TODO/DOING/REVIEW/DONE) に振り分けるサンプル。</p>
+    <a href="{{ route('user.kanban') }}" class="primary" style="display: inline-block; padding: .5rem 1.5rem; background: #2563eb; color: white; border: none; border-radius: 4px; text-decoration: none;">
+        Kanban を開く
+    </a>
+
+    <hr style="margin: 1.5rem 0; border: none; border-top: 1px solid #eee;">
+
     {{-- htmx demo: ボタンクリックで /api/server-time を fetch して innerHTML を入れ替える --}}
     <h2>htmx デモ — サーバー時刻取得</h2>
     <button class="primary"

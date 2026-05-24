@@ -40,4 +40,18 @@ interface UserRepository
      * @param string|null $token rememberToken (null でクリア)
      */
     public function updateRememberToken(int $id, ?string $token): void;
+
+    /**
+     * 論理削除されていない全ユーザーを id 昇順で取得する (管理画面の一覧用)。
+     *
+     * @return list<UserRow> 該当なしの場合は空配列
+     */
+    public function getUserList(): array;
+
+    /**
+     * 論理削除する (deleted_at に現在時刻をセット)。
+     *
+     * @param int $id 対象ユーザー ID
+     */
+    public function softDelete(int $id): void;
 }

@@ -6,6 +6,8 @@ namespace App\Providers;
 
 use Demo\Repository\Admin\AdminRepository;
 use Demo\Repository\Admin\AdminRepositoryImpl;
+use Demo\Repository\Kanban\KanbanCardRepository;
+use Demo\Repository\Kanban\KanbanCardRepositoryImpl;
 use Demo\Repository\User\UserRepository;
 use Demo\Repository\User\UserRepositoryImpl;
 use Illuminate\Support\ServiceProvider;
@@ -19,7 +21,7 @@ use Illuminate\Support\ServiceProvider;
  * (Service の binding は ServiceServiceProvider、Auth::provider() の登録は
  *  AppServiceProvider が担当)
  */
-class RepositoryServiceProvider extends ServiceProvider
+final class RepositoryServiceProvider extends ServiceProvider
 {
     public function register(): void
     {
@@ -28,5 +30,8 @@ class RepositoryServiceProvider extends ServiceProvider
 
         // --- Admin ---
         $this->app->bind(AdminRepository::class, AdminRepositoryImpl::class);
+
+        // --- Kanban ---
+        $this->app->bind(KanbanCardRepository::class, KanbanCardRepositoryImpl::class);
     }
 }

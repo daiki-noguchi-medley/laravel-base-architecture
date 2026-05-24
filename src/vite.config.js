@@ -22,6 +22,7 @@ export default defineConfig({
                 'resources/css/app.css',
                 'resources/js/app.js',
                 'resources/js/user.js',
+                'resources/js/kanban.js',
                 'resources/js/admin/app.tsx',
             ],
             refresh: true,

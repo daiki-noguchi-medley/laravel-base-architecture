@@ -7,6 +7,8 @@ import { createRoot } from 'react-dom/client';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
+import UserListPage from './pages/UserListPage';
+import UserCreatePage from './pages/UserCreatePage';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './app.css';
 
@@ -18,6 +20,8 @@ if (container) {
                 <Routes>
                     <Route path="/login" element={<LoginPage />} />
                     <Route path="/" element={<DashboardPage />} />
+                    <Route path="/users" element={<UserListPage />} />
+                    <Route path="/users/create" element={<UserCreatePage />} />
                     {/* それ以外は dashboard へ (router で吸収) */}
                     <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>

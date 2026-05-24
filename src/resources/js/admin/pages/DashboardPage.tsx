@@ -1,5 +1,6 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faGauge, faRightFromBracket, faUser } from '@fortawesome/free-solid-svg-icons';
+import { faGauge, faRightFromBracket, faUser, faUsers } from '@fortawesome/free-solid-svg-icons';
+import { Link } from 'react-router-dom';
 import { getCsrfToken } from '../types';
 
 export default function DashboardPage() {
@@ -45,6 +46,16 @@ export default function DashboardPage() {
                         <p className="mb-1"><strong>ID:</strong> {admin.id}</p>
                         <p className="mb-1"><strong>名前:</strong> {admin.name}</p>
                         <p className="mb-0"><strong>Email:</strong> {admin.email}</p>
+                    </div>
+                </div>
+
+                <div className="card mt-4">
+                    <div className="card-header">機能メニュー</div>
+                    <div className="card-body">
+                        <Link to="/users" className="btn btn-primary me-2">
+                            <FontAwesomeIcon icon={faUsers} className="me-2" />
+                            ユーザー管理
+                        </Link>
                     </div>
                 </div>
 

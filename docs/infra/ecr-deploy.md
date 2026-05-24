@@ -13,11 +13,11 @@ GitHub Actions から ECR に **指定したブランチ or tag の Docker image
 ## 全体図
 
 ```
-[手動] gh workflow run aws-ecr-push.yml -f ref=v0.7.0
+[手動] gh workflow run aws-ecr-push.yml --ref v0.9.0
             │
             ▼
    ┌── GitHub Actions runner ───────────────────────┐
-   │  1. checkout (ref=v0.7.0)                      │
+   │  1. checkout (Use workflow from で選んだ ref) │
    │  2. configure-aws-credentials@v4 (OIDC)        │
    │       ↓ id-token をGitHub に発行              │
    │       ↓ STS AssumeRoleWithWebIdentity          │
@@ -91,25 +91,26 @@ cd infrastructure/aws-oidc
 ### CLI から
 
 ```bash
-# tag 名を ref に指定 → ECR の image tag もそのまま (v0.7.0)
-gh workflow run aws-ecr-push.yml -f ref=v0.7.0
+# tag 名を --ref に指定 → ECR の image tag もそのまま (v0.9.0)
+gh workflow run aws-ecr-push.yml --ref v0.9.0
 
-# ブランチを ref に指定 → ECR の image tag は <branch>-<short-sha> で自動生成
-gh workflow run aws-ecr-push.yml -f ref=main
+# ブランチを --ref に指定 → ECR の image tag は <branch>-<short-sha> で自動生成
+gh workflow run aws-ecr-push.yml --ref main
 # → ECR には main-a1b2c3d で push される
 
 # ECR tag を明示
-gh workflow run aws-ecr-push.yml -f ref=main -f ecr_tag=main-latest
+gh workflow run aws-ecr-push.yml --ref main -f ecr_tag=main-latest
 
 # AWS region を変える
-gh workflow run aws-ecr-push.yml -f ref=v0.7.0 -f aws_region=us-east-1
+gh workflow run aws-ecr-push.yml --ref v0.9.0 -f aws_region=us-east-1
 ```
 
 ### GitHub Web UI から
 
 1. <https://github.com/NOGUD626/laravel-base-architecture/actions/workflows/aws-ecr-push.yml> を開く
 2. 「Run workflow」を押す
-3. inputs を入力 (ref / ecr_tag / aws_region)
+3. **「Use workflow from」**で対象ブランチ or tag を選択 (`Tags` タブで `v*` も選べる)
+4. (任意) `ecr_tag` / `aws_region` を入力
 4. 「Run workflow」を確定
 
 ### 結果確認

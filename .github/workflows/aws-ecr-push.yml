@@ -2,10 +2,12 @@ name: ECR push
 
 # 指定したブランチ or tag の HEAD で docker image をビルドし、ECR に push する。
 # - workflow_dispatch 専用 (自動 push はしない、人が明示的にリリースする)
-# - inputs.ref: ブランチ名 (例: main, feature/xxx) または tag 名 (例: v0.7.0)
-# - inputs.ecr_tag: ECR 側の image tag (省略時は自動生成)
-#     - ref が tag (v* で始まる) → そのまま使う (例: v0.7.0)
-#     - それ以外 (ブランチ)     → <branch>-<short-sha> (例: main-a1b2c3d)
+# - 起動時の "Use workflow from" で **GitHub UI 標準のブランチ / tag セレクタ** から選ぶ
+#   → workflow ファイル側で inputs.ref を持たない (二重指定を避ける)
+# - ECR 側の image tag は github.ref_type / github.ref_name から自動生成:
+#     - tag (v0.7.0 等)     → そのまま (v0.7.0)
+#     - ブランチ (main 等)  → <branch>-<short-sha> (例: main-a1b2c3d)
+#     - inputs.ecr_tag を明示すれば優先される
 #
 # 前提:
 #   - infrastructure/aws-oidc/ で GitHubActionsRole 作成済み (sub claim が緩い設定なら任意 ref OK)
@@ -13,17 +15,12 @@ name: ECR push
 #   - repository variable AWS_IAM_ROLE_ARN が設定済み
 #
 # 使い方:
-#   gh workflow run aws-ecr-push.yml -f ref=v0.7.0
-#   gh workflow run aws-ecr-push.yml -f ref=main -f ecr_tag=main-latest
+#   gh workflow run aws-ecr-push.yml --ref v0.9.0
+#   gh workflow run aws-ecr-push.yml --ref main -f ecr_tag=main-latest
 
 on:
   workflow_dispatch:
     inputs:
-      ref:
-        description: 'ビルド対象の git ref (ブランチ名 or tag 名)'
-        required: true
-        default: 'main'
-        type: string
       ecr_tag:
         description: 'ECR 側の image tag (省略時は自動生成: tag はそのまま / ブランチは <branch>-<short-sha>)'
         required: false
@@ -52,19 +49,15 @@ jobs:
     timeout-minutes: 20
 
     steps:
-      - name: 指定 ref を checkout
+      - name: 起動 ref を checkout (Use workflow from で選んだもの)
         uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.ref }}
-          # tag 表示などのため履歴を取る
-          fetch-depth: 0
+        # ref を省略すると github.ref (= 起動時に選ばれた branch / tag) が使われる
 
       - name: ビルド対象を表示
         run: |
-          echo "ref:    ${{ inputs.ref }}"
-          echo "commit: $(git rev-parse HEAD)"
-          echo "  tags:    $(git tag --points-at HEAD | tr '\n' ' ')"
-          echo "  branch:  $(git branch -a --contains HEAD | tr '\n' ' ')"
+          echo "ref_type: ${{ github.ref_type }}"
+          echo "ref_name: ${{ github.ref_name }}"
+          echo "sha:      ${{ github.sha }}"
 
       - name: ECR tag を決定
         id: tag
@@ -72,13 +65,14 @@ jobs:
           if [ -n "${{ inputs.ecr_tag }}" ]; then
             ECR_TAG="${{ inputs.ecr_tag }}"
             echo "==> inputs.ecr_tag を採用: $ECR_TAG"
-          elif [[ "${{ inputs.ref }}" =~ ^v[0-9] ]]; then
-            ECR_TAG="${{ inputs.ref }}"
-            echo "==> ref が tag なのでそのまま使用: $ECR_TAG"
+          elif [ "${{ github.ref_type }}" = "tag" ]; then
+            ECR_TAG="${{ github.ref_name }}"
+            echo "==> tag からの起動なのでそのまま使用: $ECR_TAG"
           else
-            SHORT_SHA=$(git rev-parse --short HEAD)
-            # ref をファイル名安全に正規化 (/ や _ を - に)
-            SAFE_REF=$(echo "${{ inputs.ref }}" | tr '/_' '--')
+            # ブランチからの起動 → <branch>-<short-sha>
+            SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+            # ref_name をファイル名安全に正規化 (/ や _ を - に)
+            SAFE_REF=$(echo "${{ github.ref_name }}" | tr '/_' '--')
             ECR_TAG="${SAFE_REF}-${SHORT_SHA}"
             echo "==> ブランチ + short-sha で自動生成: $ECR_TAG"
           fi
@@ -125,7 +119,8 @@ jobs:
           echo "" >> "$GITHUB_STEP_SUMMARY"
           echo "| 項目 | 値 |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| ref | \`${{ inputs.ref }}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| commit | \`$(git rev-parse HEAD)\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| ref type | \`${{ github.ref_type }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| ref name | \`${{ github.ref_name }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| commit | \`${{ github.sha }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| ECR tag | \`${{ steps.tag.outputs.ecr_tag }}\` |" >> "$GITHUB_STEP_SUMMARY"
           echo "| image URI | \`${{ steps.ecr-uri.outputs.image_uri }}\` |" >> "$GITHUB_STEP_SUMMARY"

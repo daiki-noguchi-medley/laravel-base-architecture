@@ -21,7 +21,7 @@ AWS CDK (TypeScript) でこのプロジェクトの AWS リソースを管理す
 
 | ツール | インストール |
 |---|---|
-| Node.js 18+ | <https://nodejs.org/> or `nvm` |
+| Node.js **22 LTS** (推奨) | `nvm use 22` (動作確認済み)。Node 23 では一部互換性問題あり (後述のトラブルシュート参照) |
 | AWS CDK CLI | `npm install -g aws-cdk` または `package.json` 経由で `npx cdk` |
 | AWS CLI v2 + SSO ログイン | `aws sso login --profile <YOUR_PROFILE>` |
 | IAM Role `GitHubActionsRole` | [`../aws-oidc/02-create-iam-role.sh`](../aws-oidc/02-create-iam-role.sh) で先に作っておく |
@@ -134,6 +134,14 @@ npx cdk destroy LaravelBaseArchitectureEcrStack
 ### `Repository cannot be deleted because it is not empty` (cdk destroy で)
 
 → removalPolicy=RETAIN なので CDK は repository を削除しない。完全削除したい場合は AWS Console / CLI で先にイメージを削除してから `aws ecr delete-repository --force`。
+
+### `ERR_MODULE_NOT_FOUND: Cannot find module '.../bin/app.ts'` (cdk synth で)
+
+→ **`package.json` に `"bin": { "cdk": "bin/app.ts" }` を書かない**。これがあると aws-cdk CLI が `cdk.json` の `app` を無視して `bin/app.ts` を直接 node に渡してしまい、Node 22+ の ESM resolver が走って失敗する。本プロジェクトでは bin フィールドを意図的に外している。
+
+### Node 23 で動かない (`internal/modules/esm/loader` 経由のエラー)
+
+→ Node 23 のネイティブ TS ローダーが ts-node より先に動く場合がある。`nvm use 22` で **Node 22 LTS** に切り替え推奨。本プロジェクトの構築・検証もすべて Node 22 で実施。
 
 ---
 

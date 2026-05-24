@@ -1,0 +1,19 @@
+# CDK 出力 (synth で生成される CloudFormation テンプレート等)
+cdk.out/
+.cdk.staging/
+
+# npm
+node_modules/
+npm-debug.log
+
+# TypeScript コンパイル成果物 (CDK は ts-node で直接実行するので不要)
+*.d.ts
+*.js
+!cdk.json
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store

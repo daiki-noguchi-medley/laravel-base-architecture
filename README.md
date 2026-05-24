@@ -109,8 +109,9 @@ bind mount する `supervisord-*.conf` だけが違う。
 ├── docs/                         インフラ / Laravel 機能 / 開発ツールのドキュメント
 │   ├── *.md                      Laravel 機能 / 開発系 (authentication / queue / schedule / testing / tinker 等)
 │   └── infra/*.md                インフラ / CI / AWS 系 (nginx-sidecar / supervisor / github-actions / oidc-aws / oidc-aws-cli)
-├── infrastructure/               インフラ構築用シェルスクリプト集 (実行可能)
-│   └── aws-oidc/                 GitHub Actions → AWS の OIDC 接続構築 (01〜04 + 99-cleanup の番号付き shell)
+├── infrastructure/               インフラ構築コード (shell / CDK)
+│   ├── aws-oidc/                 GitHub Actions → AWS の OIDC 接続構築 shell (01〜04 + 99-cleanup)
+│   └── cdk/                      AWS CDK プロジェクト (TypeScript)。ECR Stack 等
 └── src/                          ← Laravel 本体
     ├── app/
     │   ├── Http/{Controllers, Requests, Resources}/
@@ -468,6 +469,7 @@ docker compose logs -f db     # PostgreSQL の query / connection log
 | [`docs/tinker.md`](docs/tinker.md) | Tinker 活用 + artisan 確認系コマンド (Service / Repository を DI 経由で叩く、`about` / `route:list` / `db:show` / `schedule:list` / `pail` 等) |
 | [`docs/infra/oidc-aws.md`](docs/infra/oidc-aws.md) | GitHub Actions → AWS の OIDC 接続セットアップ (長期 access key を置かず短期 token で assume する手順 / AWS Console での Identity Provider・IAM Role 作成 / Trust policy の sub claim 設計) |
 | [`docs/infra/oidc-aws-cli.md`](docs/infra/oidc-aws-cli.md) | 上記の **AWS CLI 版** (コピペで動く構築手順)。`aws iam create-open-id-connect-provider` / `aws iam create-role` / `gh variable set` / `gh workflow run` を順に並べた手順書 |
+| [`docs/infra/ecr-deploy.md`](docs/infra/ecr-deploy.md) | ECR への Docker image push の全体フロー (CDK で ECR + IAM 構築 → workflow_dispatch で任意 ref を push → 命名規則 / IMMUTABLE 設計 / お片付け) |
 | [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md) | PR の書き方ガイド |
 | [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md) | PR テンプレート (自動挿入) |
 

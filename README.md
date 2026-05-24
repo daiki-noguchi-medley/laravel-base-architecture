@@ -227,8 +227,8 @@ ls src/public/build/
 # DB にテストアカウントが入っているか
 docker compose exec db psql -U laravel laravel -c 'SELECT id, name, email FROM "user"; SELECT id, name, email FROM admin;'
 
-# Laravel ログ
-docker compose exec app tail -30 storage/logs/laravel.log
+# Laravel ログ (LOG_CHANNEL=stderr なのでファイルではなくコンテナ stdout に出る)
+docker compose logs -f app
 ```
 
 ---
@@ -360,99 +360,61 @@ docker compose exec app php artisan queue:flush
 
 ---
 
-## Tinker (デバッグ)
+## Tinker / artisan 確認系コマンド
 
-Laravel の REPL (PsySH ベース)。DB クエリ確認、Job dispatch、config / env の値確認、
-Service / Repository の動作チェックに使う。
+DB の中身を見たり、Service / Repository を DI 経由で叩いたり、Job を dispatch したり、
+ルートや設定値を確認するための **使い方とコマンド一覧は [`docs/tinker.md`](docs/tinker.md)** に集約。
 
-### 起動
+最短だけここに置く:
 
 ```bash
-# 対話モードで起動 (exit / Ctrl+D で抜ける)
+# tinker (対話モード)
 docker compose exec -e HOME=/tmp app php artisan tinker
 
-# 1 コマンド実行 (one-shot)
+# 1 コマンド実行
 docker compose exec -e HOME=/tmp app php artisan tinker --execute='DB::table("user")->count();'
+
+# 最初に打つやつ
+docker compose exec app php artisan about           # バージョン / drivers / cache 状態
+docker compose exec app php artisan route:list      # 全ルート
+docker compose exec app php artisan db:show         # DB 接続情報 + テーブル一覧
+docker compose exec app php artisan schedule:list   # 登録された Schedule
+docker compose exec app php artisan queue:failed    # 失敗 Job
+docker compose exec app php artisan pail            # ログを色付き tail (LOG_CHANNEL=stderr と併用可)
 ```
 
-### よくある用途
+> `HOME=/tmp` を渡しているのは、psysh のヒストリ書込先 (`/var/www/.config/psysh`) に
+> www-data が書けず warning が出るため。
 
-```php
-// ─── DB クエリビルダー ───
-DB::table('user')->where('status', 'active')->get();
-DB::table('user')->where('id', 1)->first();
-DB::table('user')->count();
+---
 
-// ─── Carbon (タイムゾーン確認) ───
-now();                                  // Carbon\Carbon @ Asia/Tokyo
-now()->format('Y-m-d H:i:s T');         // "2026-05-24 14:01:42 JST"
+## ログ集約方針 (全コンテナ stdout/stderr 統一)
 
-// ─── config / env の確認 ───
-config('app.timezone');                 // "Asia/Tokyo"
-config('queue.default');                // "database"
-env('APP_TIMEZONE');                    // "Asia/Tokyo"
+このプロジェクトは **全コンテナのログを stdout/stderr に出す方針** で統一しています。
+AWS ECS では **Fluent Bit (`awsfirelens`) サイドカー** で CloudWatch Logs / S3 / OpenSearch
+等に転送する構成を想定。`storage/logs/*.log` のファイルログには書きません。
 
-// ─── Job を投入 (実 Job クラスで) ───
-\App\Jobs\SendWelcomeMailJob::dispatch(123);
+| コンテナ | ログ出力先 | 設定箇所 |
+|---|---|---|
+| `web` (nginx) | access_log → `/dev/stdout` / error_log → `/dev/stderr` | `docker/nginx/nginx.conf` |
+| `app` (PHP-FPM) | FPM 自体の error_log / access.log / slowlog / worker output 全て stderr | `docker/php/www.conf` |
+| `app` (Laravel) | `php://stderr` | `LOG_CHANNEL=stderr` (docker-compose の environment で上書き) |
+| `job` / `batch` (supervisord) | 各 program の `stdout_logfile=/dev/stdout` `stderr_logfile=/dev/stderr` | `docker/php/supervisord-{job,batch}.conf` |
+| `batch` (cron) | `cron -f -L 4` で stderr、cron job の出力は scheduler-cron.log → `tail -F` で stdout に流す | `docker/php/supervisord-batch.conf` |
+| `db` (PostgreSQL) | `log_destination=stderr` / `logging_collector=off` (公式 image デフォルト) | `docker-compose.yml` (postgres command) |
 
-// ─── DI コンテナから Service / Repository を取り出す ───
-app(\Demo\Service\User\UserService::class)->getActiveUserList();
-app(\Demo\Repository\User\UserRepository::class)->findById(1);
-
-// ─── Route 一覧 ───
-collect(\Route::getRoutes())->map(fn($r) => $r->methods()[0] . ' ' . $r->uri());
-
-// ─── 直近のクエリログ ───
-DB::enableQueryLog();
-DB::table('user')->where('id', 1)->first();
-DB::getQueryLog();                      // 実行された SQL とバインド値
-```
-
-### 注意点
-
-- **クロージャ dispatch は使えない** — `dispatch(function() { ... })` は tinker (eval) では
-  `SerializableClosure` がソースファイルを読めずエラーになる。
-  必ず実 Job クラス (`src/app/Jobs/...`) を作って `MyJob::dispatch()` で投入する
-- **`HOME=/tmp` を必ず付ける** — 付けないと `Writing to directory /var/www/.config/psysh is not allowed.`
-  という warning が出る (動作には影響しないが見栄えが悪い)
-- **本番で直接データ更新はしない** — 開発・調査用に留める。本番のデータ修正は必ず
-  artisan コマンド (`app/Console/Commands/`) を作って履歴に残す形で実行する
-
-### ブラウザリクエスト経由でのデバッグ (dd / dump / logger)
-
-API / 画面リクエストの中身を見たい場合は tinker より `dd()` / `dump()` が早い。
-
-```php
-// Controller / Service / Blade のどこでも
-dd($user);                              // dump して die (レスポンスを止める)
-dump($user);                            // dump して継続 (HTML に出る)
-logger($user);                          // storage/logs/laravel.log に記録
-logger()->info('hit', ['id' => $userId]);
-```
-
-ログを追跡:
+確認:
 
 ```bash
-docker compose exec app tail -f storage/logs/laravel.log
+docker compose logs -f web    # nginx access / error
+docker compose logs -f app    # PHP-FPM + Laravel (LOG_CHANNEL=stderr)
+docker compose logs -f job    # queue:work の出力
+docker compose logs -f batch  # cron daemon + cron-tail (scheduler 出力)
+docker compose logs -f db     # PostgreSQL の query / connection log
 ```
 
-worker (job コンテナ内) のジョブで使うときも `logger()` でログに書けば、上のコマンドで一緒に追える。
-
-### Queue / Job の挙動を確認するワンライナー
-
-```bash
-# 投入直後の jobs テーブル状態
-docker compose exec -T db psql -U laravel -d laravel \
-  -c "SELECT id, queue, attempts, available_at FROM jobs;"
-
-# 失敗したジョブの中身
-docker compose exec -T db psql -U laravel -d laravel \
-  -c "SELECT id, queue, exception FROM failed_jobs ORDER BY id DESC LIMIT 3;"
-
-# supervisor 配下プロセスの稼働確認 (job + batch コンテナ)
-docker compose exec job   supervisorctl status
-docker compose exec batch supervisorctl status
-```
+> 詳細は [`docs/tinker.md`](docs/tinker.md) (Laravel ログを `pail` で見る方法) と
+> [`docs/nginx-sidecar.md`](docs/nginx-sidecar.md) (nginx + Fluent Bit 構成の位置づけ) を参照。
 
 ---
 
@@ -471,6 +433,7 @@ docker compose exec batch supervisorctl status
 | [`docs/nginx-sidecar.md`](docs/nginx-sidecar.md) | nginx をサイドカーで持つ理由 (静的配信 / ログ / 圧縮 / ALB+ECS での位置づけ / 代替構成比較) |
 | [`docs/supervisor.md`](docs/supervisor.md) | Supervisor の使い方と運用 (なぜ使うか / conf 構造 / supervisorctl コマンド / job・batch 各コンテナの設定詳細 / ハマりどころ) |
 | [`docs/authentication.md`](docs/authentication.md) | Laravel 認証 (このプロジェクトの session 方式 / Blade と SPA それぞれの Vite plugin / 他方式 (Sanctum / Passport / JWT / Socialite) との比較表) |
+| [`docs/tinker.md`](docs/tinker.md) | Tinker 活用 + artisan 確認系コマンド (Service / Repository を DI 経由で叩く、`about` / `route:list` / `db:show` / `schedule:list` / `pail` 等) |
 | [`.github/CONTRIBUTING.md`](.github/CONTRIBUTING.md) | PR の書き方ガイド |
 | [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md) | PR テンプレート (自動挿入) |
 

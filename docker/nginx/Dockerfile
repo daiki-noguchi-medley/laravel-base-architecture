@@ -18,6 +18,8 @@ ENV TZ=Asia/Tokyo
 # Alpine 公式 nginx は /etc/nginx/http.d/ を使う (Debian 系の conf.d 相当)
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY default.conf /etc/nginx/http.d/default.conf
+# 各 location で include するセキュリティヘッダ snippet
+COPY security-headers.conf /etc/nginx/snippets/security-headers.conf
 
 EXPOSE 80
 

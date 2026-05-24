@@ -1,2 +1,19 @@
+# robots.txt
+# https://www.robotstxt.org/
+
 User-agent: *
-Disallow:
+
+# 管理画面はクローラーに見せない
+Disallow: /admin
+Disallow: /admin/
+
+# 内部 API もインデックスさせない
+Disallow: /api/
+
+# Laravel が返す login / dashboard 等もインデックス不要なら追加する
+# (公開サイトとして外向きに使うならコメント解除)
+# Disallow: /login
+# Disallow: /dashboard
+
+# Sitemap (URL が決まったら追加)
+# Sitemap: https://example.com/sitemap.xml

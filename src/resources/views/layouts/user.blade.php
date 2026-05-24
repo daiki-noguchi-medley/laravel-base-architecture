@@ -6,6 +6,10 @@
     <title>@yield('title', 'User') | Laravel Base Architecture</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
+    {{-- favicon (SVG 優先、レガシーブラウザ用 fallback で .ico) --}}
+    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
+    <link rel="alternate icon" href="{{ asset('favicon.ico') }}">
+
     {{-- htmx + Alpine.js (Vite で npm からバンドル、CDN 障害の影響を受けない) --}}
     @vite(['resources/js/user.js'])
 

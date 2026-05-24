@@ -6,6 +6,10 @@
     <title>管理画面 | Laravel Base Architecture</title>
     <meta name="csrf-token" content="{{ csrf_token() }}">
 
+    {{-- favicon --}}
+    <link rel="icon" type="image/svg+xml" href="{{ asset('favicon.svg') }}">
+    <link rel="alternate icon" href="{{ asset('favicon.ico') }}">
+
     @vite(['resources/js/admin/app.tsx'])
 </head>
 <body>

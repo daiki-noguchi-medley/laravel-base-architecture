@@ -90,7 +90,8 @@ bind mount する `supervisord-*.conf` だけが違う。
 ├── CLAUDE.md                     ← コーディング規約 (Laravel / PHP)
 ├── .claude/
 │   └── agents/
-│       └── laravel-code-reviewer.md   規約チェック用サブエージェント
+│       ├── laravel-code-reviewer.md         規約チェック用サブエージェント (PHP 命名/レイヤー/Repository 等)
+│       └── laravel-migration-pr-checker.md  マイグレーション PR の本文記載 (SQL/EXPLAIN/down/影響) チェック
 ├── docker/
 │   ├── nginx/
 │   │   ├── Dockerfile
@@ -471,6 +472,14 @@ docker compose logs -f db     # PostgreSQL の query / connection log
 | 6 | その他 (`declare(strict_types=1)` / `final` / `Carbon::now()`) |
 | 7 | Job / Batch / Schedule (Supervisor 経由運用) |
 | 8 | HTTP 層 (Request / Resource) — フィールド定数化、`Arrayable` 直 implements、Controller は薄く |
+| 9 | PR 規約 (マイグレーション編) — マイグレーション差分のある PR は本文に SQL / EXPLAIN / down() / 既存データ影響を必ず記載 |
 
-`.claude/agents/laravel-code-reviewer.md` に、規約違反を検出する確認専用サブエージェントを置いています。
-コードを書いた後に「規約レビュー」と頼めば走ります。
+`.claude/agents/` 配下に **2 つの確認専用サブエージェント** を置いています。
+
+| エージェント | 役割 | 起動キーワード例 |
+|---|---|---|
+| [`laravel-code-reviewer`](.claude/agents/laravel-code-reviewer.md) | PHP コードの規約違反 (命名 / レイヤー / Repository 必須 / クエリビルダー基本) を検出 | 「規約レビュー」「laravel-review」 |
+| [`laravel-migration-pr-checker`](.claude/agents/laravel-migration-pr-checker.md) | マイグレーション追加 PR で本文に SQL / EXPLAIN / down() / 影響が書かれているかを検証 (CLAUDE.md §9 準拠) | 「マイグレーション PR レビュー」「migration-pr-check」 |
+
+PR を立てる前に **両方とも一度走らせる** ことを推奨しています。
+Claude Code を使っているなら、コードを書いた後 / PR を作る前に「規約レビューして」と頼めばそれぞれが起動します。

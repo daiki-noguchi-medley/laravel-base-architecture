@@ -195,25 +195,33 @@ QUEUE_CONNECTION=database
 docker compose exec app composer dump-autoload
 ```
 
-### 7. キー生成 + マイグレーション
+### 7. キー生成 + マイグレーション + テストアカウント投入
 
 ```bash
 docker compose exec app php artisan key:generate
-docker compose exec app php artisan migrate
+docker compose exec app php artisan migrate --seed
 ```
 
-→ <http://localhost:8080> を開いて起動確認。
+`--seed` を付けることで、マイグレーション完了後に
+`UserSeeder` / `AdminSeeder` が走り、テストアカウント
+(`user@example.com` / `admin@example.com`、どちらも password=`password`) が DB に投入されます。
+
+→ <http://localhost:8080/login> でユーザー画面、<http://localhost:8080/admin/login> で管理画面を開いて起動確認。
 
 ---
 
 ## 動作確認 (テストアカウント)
 
-`UserSeeder` / `AdminSeeder` が以下のテストアカウントを投入します
-(`docker compose exec app php artisan db:seed --force`)。
+セットアップ §7 の `php artisan migrate --seed` でテストアカウントが投入されているはずです。
+あとから再投入 (パスワードリセット相当) したい場合は次のコマンドを単独で実行できます:
+
+```bash
+docker compose exec app php artisan db:seed --force
+```
 
 | 画面 | URL | テストアカウント | 技術スタック |
 |---|---|---|---|
-| **ユーザー画面** | <http://localhost:8080/login> | `user@example.com` / `password` | Blade + htmx + Alpine.js (CDN) |
+| **ユーザー画面** | <http://localhost:8080/login> | `user@example.com` / `password` | Blade + htmx + Alpine.js (Vite バンドル) |
 | **管理画面** | <http://localhost:8080/admin/login> | `admin@example.com` / `password` | Vite + React 18 + TypeScript + Bootstrap 5 + FontAwesome |
 
 ### ユーザー画面で試せること

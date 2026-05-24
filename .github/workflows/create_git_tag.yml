@@ -34,3 +34,15 @@ jobs:
           WITH_V: true
           RELEASE_BRANCHES: main
           INITIAL_VERSION: v0.1.0
+
+      - name: Slack Notification
+        # 成功 / 失敗どちらでも通知 (always)
+        if: always()
+        uses: rtCamp/action-slack-notify@v2
+        env:
+          SLACK_COLOR: ${{ job.status == 'success' && '#4834d4' || '#dc3545' }}
+          SLACK_TITLE: "[${{ github.repository }}] タグ作成"
+          SLACK_MESSAGE: ${{ steps.bump.outputs.new_tag && format('タグ作成完了: {0}', steps.bump.outputs.new_tag) || 'タグ作成に失敗しました' }}
+          SLACK_USERNAME: GitHub Actions
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+          MSG_MINIMAL: ref,actions url

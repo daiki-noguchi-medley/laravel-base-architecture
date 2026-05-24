@@ -1,0 +1,60 @@
+name: AWS OIDC 接続テスト
+
+# GitHub Actions から AWS への OIDC 接続が成立しているかの疎通確認 workflow。
+# - workflow_dispatch (手動起動) のみ。自動デプロイには使わない。
+# - aws-actions/configure-aws-credentials@v4 が OIDC token を発行 →
+#   AWS STS で AssumeRoleWithWebIdentity → 一時 credentials 取得
+# - 取得した credentials で `aws sts get-caller-identity` を呼び、
+#   どの role を assume できたかを確認するだけ (副作用なし)
+#
+# 事前準備 (AWS Console 側の作業) は docs/oidc-aws.md を参照。
+# - IAM Identity Provider (token.actions.githubusercontent.com)
+# - IAM Role (Trust policy で repo:NOGUD626/laravel-base-architecture:* を許可)
+# - GitHub repository variable `AWS_IAM_ROLE_ARN` に role ARN を登録
+
+on:
+  workflow_dispatch:
+    inputs:
+      aws-region:
+        description: 'AWS region (default: ap-northeast-1)'
+        required: false
+        default: 'ap-northeast-1'
+        type: string
+
+# OIDC token の発行に必要。Actions のデフォルト権限は read なので明示する
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  verify-oidc:
+    name: AssumeRoleWithWebIdentity 疎通確認
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: AWS_IAM_ROLE_ARN が設定されているか確認
+        env:
+          ROLE_ARN: ${{ vars.AWS_IAM_ROLE_ARN }}
+        run: |
+          if [ -z "$ROLE_ARN" ]; then
+            echo "::error::repository variable AWS_IAM_ROLE_ARN が未設定です。"
+            echo "::error::Settings > Secrets and variables > Actions > Variables タブに追加してください。"
+            echo "::error::詳細は docs/oidc-aws.md を参照。"
+            exit 1
+          fi
+          echo "Role ARN: $ROLE_ARN"
+
+      - name: AWS credentials を OIDC で取得
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          # IAM Role ARN は機密情報ではない (sub claim マッチが無いと assume できないため)
+          # secrets ではなく variables に置く
+          role-to-assume: ${{ vars.AWS_IAM_ROLE_ARN }}
+          aws-region: ${{ inputs.aws-region }}
+          # role session 名は GitHub Actions の job ID をベースに自動生成される
+
+      - name: get-caller-identity で接続確認
+        run: |
+          echo "AWS への OIDC 接続が成功しました。Assume した identity:"
+          aws sts get-caller-identity

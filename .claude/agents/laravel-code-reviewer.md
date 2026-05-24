@@ -64,12 +64,71 @@ model: sonnet
 ### 6. PHP コードスタイル
 
 - ファイル先頭に `declare(strict_types=1);`
-- クラスはデフォルト `final` (継承を意図する場合のみ外す)
+- クラスはデフォルト `final` (継承を意図する場合のみ外す) ← `class Foo` を `final class Foo` に
 - マジックナンバー / 文字列リテラル直書きはないか (enum / 定数化)
 - ネストの深い `if` を **guard clause** で平坦化しているか
 - 分岐が多いとき `match` を使っているか (`if-elseif` 連鎖を避ける)
-- `date()` / `time()` を直接使わず `Carbon::now()` を使っているか
+- **タイムゾーン依存処理** は `Carbon::now()` または `CarbonImmutable::now()` のみ。以下はすべて違反:
+  - `date()` / `time()` / `mktime()` の直接使用
+  - **`now()` ヘルパー** (Laravel グローバルヘルパー — `Carbon::now()` のラッパーだが、一貫性のため使わない)
+  - 検出: `grep -rnE '(^|[^:])\bnow\(\)' src/app src/Demo --include="*.php"`
+    (`Carbon::now()` ではなく裸の `now()` を検出。前置 `:` を弾く)
 - 不要なコメント (What の説明) はないか
+
+### 7. ViewModel 強制 (Blade 渡しの単一窓口)
+
+Blade テンプレートに渡すデータは **何であれ ViewModel 経由**。
+enum の配列、設定値、プリミティブも例外なし。Controller の `view(..., [...])` に渡すキーは
+**`vm` ひとつだけ** をルールとする (1 つの ViewModel に詰めて渡す)。
+
+違反検出:
+
+```bash
+# Controller が view(..., [...]) に何かを渡している箇所を抽出
+grep -rnE "return view\([^)]+,\s*\[" src/app/Http/Controllers --include="*.php" -A 5 \
+  | grep -E "'(?!vm')" | head -20
+```
+
+OK パターン (Blade 渡しは vm のみ):
+- `view('foo.bar', ['vm' => SomeViewModel::build()])`
+- `view('foo.bar', ['vm' => SomeViewModel::fromAuth($auth)])`
+
+NG パターン (vm 以外のキーが混じる):
+- `view('foo.bar', ['userList' => $service->getUserList()])` ← Service 戻り値を直渡し
+- `view('foo.bar', ['laneList' => Enum::cases()])` ← enum 配列を直渡し
+- `view('foo.bar', ['count' => $n])` ← プリミティブを直渡し
+
+例外: `view('foo.bar')` (引数なし)、React SPA mount 用 (`return view('admin.app')`) は OK。
+
+### 8. private PHPDoc に `@return` 必須
+
+`private` メソッドの PHPDoc は **意味の一次情報**。
+`@param` / `@return` / `@throws` を漏らさず書く。`@return` は **型シグネチャから自明
+(`: string` 等) でも省略しない**。
+
+検出手順 (手動レビュー):
+
+1. `grep -nB 10 "private function" src/Demo/**/*Impl.php src/app/**/*.php` で全 private メソッドの定義前を見る
+2. `/**` で始まる PHPDoc コメントがあるか確認
+3. PHPDoc あり、かつ `@return` の行が無ければ違反 (型シグネチャがあっても省略不可)
+
+OK:
+```php
+/**
+ * 何かを生成する説明。
+ *
+ * @return string 生成された値 (内容の意味を添える)
+ */
+private function generateSomething(): string { ... }
+```
+
+NG (`@return` 欠落):
+```php
+/**
+ * 何かを生成する説明。
+ */
+private function generateSomething(): string { ... }
+```
 
 ---
 
@@ -82,6 +141,9 @@ model: sonnet
    - `grep -rnE '\$(cnt|lst|usr|tmp|temp|res|data|val)\b' src/`
    - `grep -rn "namespace App\\\\Demo" src/`
    - `grep -rn "User::\|->save()\|->find(" src/Demo/Repository/`
+   - `grep -rnE '(^|[^:])\bnow\(\)' src/app src/Demo --include="*.php"` ← § 6: now() ヘルパー検出
+   - `grep -rnE "return view\([^)]+,\s*\[" src/app/Http/Controllers --include="*.php"` ← § 7: view() の渡し方
+   - `grep -rnE '^class [A-Z]' src/app src/Demo --include="*.php"` ← § 6: final 抜け
 3. **CLAUDE.md と照合** — 微妙な判断は `/Users/noguchi/Desktop/laravel arche/CLAUDE.md` を直接読んで確認
 4. **結果を整理して返す**
 

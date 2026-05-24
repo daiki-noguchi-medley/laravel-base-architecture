@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Demo\Repository\User;
 
+use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
 
 final class UserRepositoryImpl implements UserRepository
@@ -32,8 +33,8 @@ final class UserRepositoryImpl implements UserRepository
             'name'       => $name,
             'email'      => $email,
             'password'   => $hashedPassword,
-            'created_at' => now(),
-            'updated_at' => now(),
+            'created_at' => Carbon::now(),
+            'updated_at' => Carbon::now(),
         ]);
     }
 
@@ -41,7 +42,7 @@ final class UserRepositoryImpl implements UserRepository
     {
         DB::table('user')->where('id', $id)->update([
             'remember_token' => $token,
-            'updated_at'     => now(),
+            'updated_at'     => Carbon::now(),
         ]);
     }
 
@@ -58,8 +59,8 @@ final class UserRepositoryImpl implements UserRepository
     public function softDelete(int $id): void
     {
         DB::table('user')->where('id', $id)->update([
-            'deleted_at' => now(),
-            'updated_at' => now(),
+            'deleted_at' => Carbon::now(),
+            'updated_at' => Carbon::now(),
         ]);
     }
 }

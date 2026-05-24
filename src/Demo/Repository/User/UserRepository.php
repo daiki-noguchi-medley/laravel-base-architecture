@@ -38,6 +38,7 @@ interface UserRepository
      *
      * @param int $id 対象ユーザー ID
      * @param string|null $token rememberToken (null でクリア)
+     * @return void
      */
     public function updateRememberToken(int $id, ?string $token): void;
 
@@ -52,6 +53,7 @@ interface UserRepository
      * 論理削除する (deleted_at に現在時刻をセット)。
      *
      * @param int $id 対象ユーザー ID
+     * @return void
      */
     public function softDelete(int $id): void;
 }

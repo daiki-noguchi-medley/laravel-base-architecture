@@ -39,7 +39,7 @@ final class Limit
 
 ```php
 // NG: マジックナンバー / 文字列リテラル直書き
-if ($user->status === 'active') { ... }
+if ($user->getStatus() === 'active') { ... }
 sleep(3);
 $retries = 5;
 ```
@@ -47,7 +47,7 @@ $retries = 5;
 ### 良い例
 
 ```php
-if ($user->status === UserStatus::ACTIVE) { ... }
+if ($user->getStatus() === UserStatus::ACTIVE) { ... }
 sleep(Limit::DIAL_TIMEOUT_SEC);
 $retries = Limit::MAX_RETRY_COUNT;
 ```
@@ -109,7 +109,7 @@ $userList = $service->getUserList();
 
 ```php
 foreach ($userList as $user) {
-    echo $user->name;
+    echo $user->getName();
 }
 ```
 
@@ -194,25 +194,46 @@ foreach ($pendingOrderList as $pendingOrder) { ... }
 
 クラスの種別ごとに使い分ける。**強制統一はしない**、用途で選ぶ。
 
-#### Model — `public readonly` プロパティ基本
+#### Model — private プロパティ + `get~` アクセサで統一
 
-テーブル 1 行を表すデータバッグ的な単純表現。シンプルさ優先。
+テーブル 1 行を表すデータクラス。**プロパティは公開せず、取り出しは必ず `get~` メソッド経由**。
 
 ```php
 // app/Model/User/User.php
 final readonly class User
 {
     public function __construct(
-        public int $id,
-        public string $name,
-        public string $email,
+        private int $id,
+        private string $name,
+        private string $email,
     ) {}
+
+    public function getId(): int
+    {
+        return $this->id;
+    }
+
+    public function getName(): string
+    {
+        return $this->name;
+    }
+
+    public function getEmail(): string
+    {
+        return $this->email;
+    }
 }
 
 // 使用
-$user->id;
-$user->name;
+$user->getId();
+$user->getName();
 ```
+
+理由:
+- 生プロパティ公開だと、後から加工・派生 (`getMaskedEmail()` 等) を挟む余地がなく、
+  挟んだ瞬間に「素のプロパティ」と「加工メソッド」の二重アクセス面ができる。
+  最初から get~ に統一すれば取り出し面が 1 つで済む
+- bool を返す場合は `is~` / `has~` / `can~` (get~ にしない)
 
 #### Auth / ドメインオブジェクト — Laravel スタイル (動詞なし) 基本
 
@@ -232,9 +253,10 @@ $user->hasUnpaidInvoice();
 $order->canBeCancelled();
 ```
 
-#### `getXxx()` を使ってよいケース (例外的)
+#### Auth / ドメインオブジェクト側で `getXxx()` を使ってよいケース
 
-メソッド名だけだと **「何を返すか」が曖昧** / **加工 / 派生 / 計算** が入る場合は `getXxx()` で明示してよい:
+(Model は上記の通り常に `get~`。) Laravel スタイル側でも、メソッド名だけだと
+**「何を返すか」が曖昧** / **加工 / 派生 / 計算** が入る場合は `getXxx()` で明示してよい:
 
 ```php
 $user->getMaskedEmail();       // ***@example.com に整形
@@ -270,7 +292,7 @@ $order->getTotalIncludeTax();  // 計算結果である旨を明示
 
 | 種別 | 役割 | 配置 | 例 |
 |---|---|---|---|
-| **Model** | テーブル 1 枚 = 1 クラス。Repository ↔ Service の境界で使う readonly DTO | `app/Model/<ドメイン>/` | `User` / `Admin` / `KanbanCard` |
+| **Model** | テーブル 1 枚 = 1 クラス。Repository ↔ Service の境界で使う readonly クラス (private プロパティ + `get~` アクセサ) | `app/Model/<ドメイン>/` | `User` / `Admin` / `KanbanCard` |
 | **ViewModel** (DTO) | Blade に渡す | `app/Http/ViewModel/<Domain>/<SubDomain>/` | `DashboardViewModel` |
 | **Resource** (DTO) | HTTP レスポンス整形 (JSON / TSV) | `app/Http/Resource/<Role>/<Entity>/` | `~Resource` (`Arrayable` 直 implements) |
 | **クエリ結果 DTO** | テーブルに対応しない JOIN / 集計結果 | `Demo/<ドメイン>/Repository/` | `~Result` サフィックス (`UserWithOrderCountResult`) |
@@ -283,6 +305,8 @@ Model の規約:
   (`app/Model/Kanban/KanbanCard.php`, `app/Enum/Kanban/KanbanLane.php`)。
   Request / Resource / ViewModel が `<Domain>/<SubDomain>` を切るのと同じルール。
   ドメイン横断の汎用定数 (`app/Constants/Limit.php` 等) だけは直置きを許容する
+- Model のプロパティは **private** とし、取り出しは **`get~` アクセサ経由** (§3)。
+  生プロパティ (`$user->id`) の直アクセスは書かない
 - Model は DB の知識 (カラム名 / stdClass) を持たない。クエリビルダー結果 → Model の変換は
   各 RepositoryImpl の **`private function toModel(stdClass $row)`** が担う (後述の Repository 例を参照)。
   複数の Impl で変換を共有したくなったら、その時点で `~Mapper` クラスに切り出す
@@ -603,7 +627,7 @@ final class OrderServiceImpl implements OrderService
             ?? throw new \InvalidArgumentException("user not found: {$userId}");
 
         // 外部 API も Repository 経由 (Http::post を直接触らない)
-        $payment = $this->paymentApiRepository->charge($user->id, $amount);
+        $payment = $this->paymentApiRepository->charge($user->getId(), $amount);
 
         // トランザクション境界は Service が握る
         return DB::transaction(function () use ($user, $payment, $amount) {
@@ -870,7 +894,7 @@ final class OrderServiceImpl implements OrderService
         $user = $this->userRepository->findById($userId)
             ?? throw new \InvalidArgumentException("user not found: {$userId}");
 
-        if ($user->status !== UserStatus::ACTIVE) {
+        if ($user->getStatus() !== UserStatus::ACTIVE) {
             throw new \InvalidArgumentException("user not active: {$userId}");
         }
         return $user;
@@ -901,7 +925,7 @@ public function process(?User $user): Result
 {
     if ($user !== null) {
         if ($user->age >= 18) {
-            if ($user->email !== '') {
+            if ($user->getEmail() !== '') {
                 // 本体
                 return ...;
             } else {
@@ -924,7 +948,7 @@ public function process(?User $user): Result
     if ($user->age < 18) {
         throw new InvalidArgumentException('under 18');
     }
-    if ($user->email === '') {
+    if ($user->getEmail() === '') {
         throw new InvalidArgumentException('email required');
     }
     // 本体 (ネスト 0)
@@ -935,7 +959,7 @@ public function process(?User $user): Result
 ### 分岐が多いときは `match` (PHP 8+)
 
 ```php
-return match ($user->status) {
+return match ($user->getStatus()) {
     UserStatus::ACTIVE  => $this->sendNotification($user),
     UserStatus::PENDING => $this->remind($user),
     UserStatus::DELETED => null,

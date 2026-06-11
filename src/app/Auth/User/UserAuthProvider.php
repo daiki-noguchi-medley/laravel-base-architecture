@@ -29,10 +29,10 @@ final class UserAuthProvider implements UserProvider
     public function retrieveByToken($identifier, $token): ?Authenticatable
     {
         $user = $this->userRepository->findById((int) $identifier);
-        if ($user === null || $user->rememberToken === null) {
+        if ($user === null || $user->getRememberToken() === null) {
             return null;
         }
-        if (!hash_equals($user->rememberToken, (string) $token)) {
+        if (!hash_equals($user->getRememberToken(), (string) $token)) {
             return null;
         }
         return new UserAuth($user);

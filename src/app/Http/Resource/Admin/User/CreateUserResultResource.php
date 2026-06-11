@@ -31,10 +31,10 @@ final readonly class CreateUserResultResource implements Arrayable
     {
         return [
             'user' => [
-                'id'         => $this->user->id,
-                'name'       => $this->user->name,
-                'email'      => $this->user->email,
-                'created_at' => $this->user->createdAt->format('Y-m-d H:i:s'),
+                'id'         => $this->user->getId(),
+                'name'       => $this->user->getName(),
+                'email'      => $this->user->getEmail(),
+                'created_at' => $this->user->getCreatedAt()->format('Y-m-d H:i:s'),
             ],
             'plain_password' => $this->plainPassword,
         ];

@@ -24,7 +24,7 @@ final class AdminAuth implements Authenticatable
 
     public function getAuthIdentifier(): int
     {
-        return $this->admin->id;
+        return $this->admin->getId();
     }
 
     public function getAuthPasswordName(): string
@@ -34,12 +34,12 @@ final class AdminAuth implements Authenticatable
 
     public function getAuthPassword(): string
     {
-        return $this->admin->password;
+        return $this->admin->getPassword();
     }
 
     public function getRememberToken(): ?string
     {
-        return $this->admin->rememberToken;
+        return $this->admin->getRememberToken();
     }
 
     public function setRememberToken($value): void
@@ -56,16 +56,16 @@ final class AdminAuth implements Authenticatable
 
     public function id(): int
     {
-        return $this->admin->id;
+        return $this->admin->getId();
     }
 
     public function name(): string
     {
-        return $this->admin->name;
+        return $this->admin->getName();
     }
 
     public function email(): string
     {
-        return $this->admin->email;
+        return $this->admin->getEmail();
     }
 }

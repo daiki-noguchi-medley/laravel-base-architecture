@@ -31,12 +31,12 @@ final readonly class KanbanCardResource implements Arrayable
     public function toArray(): array
     {
         return [
-            'id'         => $this->card->id,
-            'title'      => $this->card->title,
-            'body'       => $this->card->body,
-            'lane'       => $this->card->lane->value,
-            'position'   => $this->card->position,
-            'updated_at' => $this->card->updatedAt->format('Y-m-d H:i:s'),
+            'id'         => $this->card->getId(),
+            'title'      => $this->card->getTitle(),
+            'body'       => $this->card->getBody(),
+            'lane'       => $this->card->getLane()->value,
+            'position'   => $this->card->getPosition(),
+            'updated_at' => $this->card->getUpdatedAt()->format('Y-m-d H:i:s'),
         ];
     }
 }

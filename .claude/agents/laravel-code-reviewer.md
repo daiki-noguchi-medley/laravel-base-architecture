@@ -51,6 +51,8 @@ model: sonnet
 - Repository の戻り値型に **Eloquent モデル** が現れていないか (層を漏らさない)
 - クエリビルダーの生の `stdClass` / `Collection<stdClass>` をそのまま Service に返していないか
   (`app/Model/` の Model クラスに詰め直す。変換は RepositoryImpl の `private function toModel(stdClass $row)` が担う)
+- **Model のプロパティが public になっていないか** — Model は private プロパティ + `get~` アクセサが規約 (CLAUDE.md §3)。
+  検出: `grep -n "public " src/app/Model/*/*.php` で `__construct` と `get~/is~/has~` メソッド以外の public が出たら違反
 
 ### 4. 外部 API 通信
 

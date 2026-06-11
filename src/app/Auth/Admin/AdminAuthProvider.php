@@ -27,10 +27,10 @@ final class AdminAuthProvider implements UserProvider
     public function retrieveByToken($identifier, $token): ?Authenticatable
     {
         $admin = $this->adminRepository->findById((int) $identifier);
-        if ($admin === null || $admin->rememberToken === null) {
+        if ($admin === null || $admin->getRememberToken() === null) {
             return null;
         }
-        if (!hash_equals($admin->rememberToken, (string) $token)) {
+        if (!hash_equals($admin->getRememberToken(), (string) $token)) {
             return null;
         }
         return new AdminAuth($admin);

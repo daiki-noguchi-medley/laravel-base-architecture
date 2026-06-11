@@ -33,14 +33,14 @@ final class UserRepositoryImplTest extends TestCase
         $userRepository = app(UserRepository::class);
 
         $id = $userRepository->insert('Alice', 'alice@example.com', Hash::make('secret'));
-        $row = $userRepository->findById($id);
+        $user = $userRepository->findById($id);
 
-        $this->assertInstanceOf(User::class, $row);
-        $this->assertSame($id, $row->id);
-        $this->assertSame('Alice', $row->name);
-        $this->assertSame('alice@example.com', $row->email);
-        $this->assertNull($row->rememberToken);
-        $this->assertTrue(password_verify('secret', $row->password));
+        $this->assertInstanceOf(User::class, $user);
+        $this->assertSame($id, $user->getId());
+        $this->assertSame('Alice', $user->getName());
+        $this->assertSame('alice@example.com', $user->getEmail());
+        $this->assertNull($user->getRememberToken());
+        $this->assertTrue(password_verify('secret', $user->getPassword()));
     }
 
     public function test_find_by_email_returns_row(): void
@@ -48,10 +48,10 @@ final class UserRepositoryImplTest extends TestCase
         $userRepository = app(UserRepository::class);
 
         $userRepository->insert('Bob', 'bob@example.com', Hash::make('x'));
-        $row = $userRepository->findByEmail('bob@example.com');
+        $user = $userRepository->findByEmail('bob@example.com');
 
-        $this->assertInstanceOf(User::class, $row);
-        $this->assertSame('Bob', $row->name);
+        $this->assertInstanceOf(User::class, $user);
+        $this->assertSame('Bob', $user->getName());
     }
 
     public function test_update_remember_token(): void
@@ -61,8 +61,8 @@ final class UserRepositoryImplTest extends TestCase
         $id = $userRepository->insert('Carol', 'carol@example.com', Hash::make('x'));
         $userRepository->updateRememberToken($id, 'token-xyz');
 
-        $row = $userRepository->findById($id);
+        $user = $userRepository->findById($id);
 
-        $this->assertSame('token-xyz', $row->rememberToken);
+        $this->assertSame('token-xyz', $user->getRememberToken());
     }
 }

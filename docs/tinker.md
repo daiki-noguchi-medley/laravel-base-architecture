@@ -46,8 +46,8 @@ $userId  = $service->register(name: 'tinker太郎', email: 'tinker@example.com',
 
 // 登録した user を Repository から取得 (App\Model\User\User が返る)
 $user = app(\Demo\User\Repository\UserRepository::class)->findById($userId);
-$user->name;      // "tinker太郎"
-$user->email;     // "tinker@example.com"
+$user->getName();   // "tinker太郎"
+$user->getEmail();  // "tinker@example.com"
 ```
 
 ### 2.2 Repository を直接叩く (DB の中身を確認)

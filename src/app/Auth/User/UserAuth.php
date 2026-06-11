@@ -26,7 +26,7 @@ final class UserAuth implements Authenticatable
 
     public function getAuthIdentifier(): int
     {
-        return $this->user->id;
+        return $this->user->getId();
     }
 
     public function getAuthPasswordName(): string
@@ -36,12 +36,12 @@ final class UserAuth implements Authenticatable
 
     public function getAuthPassword(): string
     {
-        return $this->user->password;
+        return $this->user->getPassword();
     }
 
     public function getRememberToken(): ?string
     {
-        return $this->user->rememberToken;
+        return $this->user->getRememberToken();
     }
 
     /**
@@ -62,16 +62,16 @@ final class UserAuth implements Authenticatable
 
     public function id(): int
     {
-        return $this->user->id;
+        return $this->user->getId();
     }
 
     public function name(): string
     {
-        return $this->user->name;
+        return $this->user->getName();
     }
 
     public function email(): string
     {
-        return $this->user->email;
+        return $this->user->getEmail();
     }
 }

@@ -75,7 +75,7 @@ final class KanbanServiceImpl implements KanbanService
         $card = $this->kanbanCardRepository->findById($cardId)
             ?? throw new InvalidArgumentException("card not found: {$cardId}");
 
-        if ($card->userId !== $userId) {
+        if ($card->getUserId() !== $userId) {
             throw new InvalidArgumentException("card not owned by user: card={$cardId}, user={$userId}");
         }
         return $card;

@@ -33,13 +33,13 @@ final class AdminRepositoryImplTest extends TestCase
         $adminRepository = app(AdminRepository::class);
 
         $id = $adminRepository->insert('Root', 'root@example.com', Hash::make('secret'));
-        $row = $adminRepository->findById($id);
+        $admin = $adminRepository->findById($id);
 
-        $this->assertInstanceOf(Admin::class, $row);
-        $this->assertSame($id, $row->id);
-        $this->assertSame('Root', $row->name);
-        $this->assertSame('root@example.com', $row->email);
-        $this->assertTrue(password_verify('secret', $row->password));
+        $this->assertInstanceOf(Admin::class, $admin);
+        $this->assertSame($id, $admin->getId());
+        $this->assertSame('Root', $admin->getName());
+        $this->assertSame('root@example.com', $admin->getEmail());
+        $this->assertTrue(password_verify('secret', $admin->getPassword()));
     }
 
     public function test_find_by_email_returns_row(): void
@@ -47,10 +47,10 @@ final class AdminRepositoryImplTest extends TestCase
         $adminRepository = app(AdminRepository::class);
 
         $adminRepository->insert('Ops', 'ops@example.com', Hash::make('x'));
-        $row = $adminRepository->findByEmail('ops@example.com');
+        $admin = $adminRepository->findByEmail('ops@example.com');
 
-        $this->assertInstanceOf(Admin::class, $row);
-        $this->assertSame('Ops', $row->name);
+        $this->assertInstanceOf(Admin::class, $admin);
+        $this->assertSame('Ops', $admin->getName());
     }
 
     public function test_update_remember_token(): void
@@ -60,8 +60,8 @@ final class AdminRepositoryImplTest extends TestCase
         $id = $adminRepository->insert('Sec', 'sec@example.com', Hash::make('x'));
         $adminRepository->updateRememberToken($id, 'token-admin');
 
-        $row = $adminRepository->findById($id);
+        $admin = $adminRepository->findById($id);
 
-        $this->assertSame('token-admin', $row->rememberToken);
+        $this->assertSame('token-admin', $admin->getRememberToken());
     }
 }

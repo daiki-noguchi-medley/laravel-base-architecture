@@ -189,7 +189,7 @@ date_default_timezone_get();         // "Asia/Tokyo"
 | コマンド | 用途 |
 |---|---|
 | `php artisan route:list` | 全ルート (method / URI / name / action / middleware) |
-| `php artisan route:list --columns=method,uri,name` | 列を絞って見やすく |
+| `php artisan route:list --except-vendor` | vendor 由来のルートを隠して見やすく |
 | `php artisan route:list --path=admin` | パスでフィルタ |
 | `php artisan route:list --name=login` | 名前でフィルタ |
 

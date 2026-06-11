@@ -223,7 +223,7 @@ docker compose exec batch supervisorctl status
 
 ```bash
 # (1) コードを edit
-vi src/Demo/Service/User/UserAuthServiceImpl.php
+vi src/Demo/User/Service/UserAuthServiceImpl.php
 
 # (2) queue-worker は memory に古いコードを持っているので再起動
 docker compose exec job supervisorctl restart job-worker

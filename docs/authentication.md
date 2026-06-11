@@ -39,7 +39,7 @@
 
 - **Eloquent モデルを Service 層に出さない** (CLAUDE.md §4 鉄則)
 - 認証 UI / Auth ファサードからは `UserAuth` (Authenticatable 実装) を返す
-- `UserAuth` は内部で `UserRow` (Repository が返す readonly DTO) を保持
+- `UserAuth` は内部で `User` Model (`App\Model\User\User`、Repository が返す readonly オブジェクト) を保持
 - Repository は `DB::table('user')` のクエリビルダー基本
 
 これにより、Service 層 / Controller 層は **Eloquent に依存しない** 純粋な PHP オブジェクトのみ扱う。

@@ -114,14 +114,16 @@ bind mount する `supervisord-*.conf` だけが違う。
 │   └── cdk/                      AWS CDK プロジェクト (TypeScript)。ECR Stack 等
 └── src/                          ← Laravel 本体
     ├── app/
-    │   ├── Http/{Controllers, Requests, Resources}/
+    │   ├── Http/{Controller, Request, Resource, ViewModel}/   HTTP 層 (ディレクトリは単数形)
+    │   ├── Model/<ドメイン>/     テーブル対応 Model (User / Admin / KanbanCard、suffix なし)
     │   ├── Jobs/                 Job クラス (Laravel 標準位置)
     │   ├── Console/Commands/     artisan コマンド
-    │   ├── Enums/
+    │   ├── Enum/<ドメイン>/
     │   └── Constants/
-    └── Demo/                     ← 事業ドメインパッケージ (app/ と並列)
-        ├── Service/<Logic>/      Service interface + Impl
-        └── Repository/<Logic>/   Repository interface + Impl (DB クエリビルダー / 外部 API)
+    └── Demo/                     ← 事業ドメインパッケージ (app/ と並列、ドメイン先頭)
+        ├── User/{Service, Repository}/      各レイヤーに interface + Impl
+        ├── Admin/{Service, Repository}/
+        └── Kanban/{Service, Repository}/    (DB クエリビルダー + toModel / 外部 API)
 ```
 
 `src/Demo/` 配下の構成と命名規則は `CLAUDE.md §4` を参照。
@@ -213,6 +215,17 @@ docker compose exec app php artisan migrate --seed
 (`user@example.com` / `admin@example.com`、どちらも password=`password`) が DB に投入されます。
 
 → <http://localhost:8080/login> でユーザー画面、<http://localhost:8080/admin/login> で管理画面を開いて起動確認。
+
+### 8. job worker の再起動 (初回のみ)
+
+```bash
+docker compose restart job
+docker compose exec job supervisorctl status   # job-worker が RUNNING なら OK
+```
+
+> 初回セットアップでは vendor/ が無い状態で job コンテナが先に起動するため、
+> `queue:work` が FATAL で落ちている。composer install 後に一度再起動すれば
+> supervisor が worker を立て直す。
 
 ---
 
@@ -484,7 +497,7 @@ docker compose logs -f db     # PostgreSQL の query / connection log
 | 1 | 定数 / Enum (大文字スネークケース) |
 | 2 | DB テーブル名 (単数形 `user` / `tag`) |
 | 3 | 変数・関数命名 (`~List` サフィックス、略語禁止、命名から処理が予測可能) |
-| 4 | レイヤー構造 (Controller → Service → Repository) + interface PHPDoc 規約 |
+| 4 | レイヤー構造 (Controller → Service → Repository、ドメイン先頭) + Model (`app/Model/<ドメイン>/`) + interface PHPDoc 規約 |
 | 5 | 制御フロー (早期 return / match) |
 | 6 | その他 (`declare(strict_types=1)` / `final` / `Carbon::now()`) |
 | 7 | Job / Batch / Schedule (Supervisor 経由運用) |

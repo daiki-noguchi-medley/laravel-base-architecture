@@ -41,20 +41,20 @@ hello
 
 ```php
 // Service 経由でユーザー登録
-$service = app(\Demo\Service\User\UserService::class);
+$service = app(\Demo\User\Service\UserAuthService::class);
 $userId  = $service->register(name: 'tinker太郎', email: 'tinker@example.com', plainPassword: 'password123');
 
-// Auth 用 UserAuth を取得
-$auth = app(\Demo\Service\User\UserAuthService::class)->findAuthById($userId);
-$auth->name();      // "tinker太郎"
-$auth->email();     // "tinker@example.com"
+// 登録した user を Repository から取得 (App\Model\User\User が返る)
+$user = app(\Demo\User\Repository\UserRepository::class)->findById($userId);
+$user->name;      // "tinker太郎"
+$user->email;     // "tinker@example.com"
 ```
 
 ### 2.2 Repository を直接叩く (DB の中身を確認)
 
 ```php
 // 全件
-$repo = app(\Demo\Repository\User\UserRepository::class);
+$repo = app(\Demo\User\Repository\UserRepository::class);
 $repo->findById(1);
 
 // クエリビルダーで直接覗く

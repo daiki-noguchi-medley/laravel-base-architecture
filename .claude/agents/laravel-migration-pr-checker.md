@@ -82,7 +82,7 @@ git diff origin/main...HEAD --name-only -- 'src/database/migrations/*'
    - `$table->index([...])` が本文の `CREATE INDEX` と一致するか
    - `down()` が `Schema::dropIfExists` か `dropColumn` で実装されているか
 
-6. **CLAUDE.md §9 と照合** — 微妙な判断は `/Users/noguchi/Desktop/laravel arche/CLAUDE.md` §9 を直接読む。
+6. **CLAUDE.md §9 と照合** — 微妙な判断はリポジトリルートの `CLAUDE.md` §9 を直接読む。
 
 7. **結果を整理して返す。**
 

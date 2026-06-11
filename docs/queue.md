@@ -63,7 +63,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
-use Demo\Service\User\UserAuthService;
+use Demo\User\Service\UserAuthService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;

@@ -146,67 +146,25 @@ docker compose build
 docker compose up -d
 ```
 
-### 3. Laravel を `src/` にインストール (初回のみ)
+### 3. PHP 依存をインストール
 
 ```bash
-docker compose exec app composer create-project laravel/laravel .
+docker compose exec app composer install
 ```
 
-> `src/` に隠しファイル (`.DS_Store` 等) があると Composer に弾かれる。
-> 事前に `find src -name '.DS_Store' -delete` しておく。
-
-### 4. Laravel の `.env` を DB に合わせる (`src/.env` を編集)
-
-```env
-APP_TIMEZONE=Asia/Tokyo
-APP_LOCALE=ja
-APP_FAKER_LOCALE=ja_JP
-
-DB_CONNECTION=pgsql
-DB_HOST=db
-DB_PORT=5432
-DB_DATABASE=laravel
-DB_USERNAME=laravel
-DB_PASSWORD=secret
-
-QUEUE_CONNECTION=database
-```
-
-### 5. Laravel 13 ひな型の timezone を `env()` に修正
-
-`src/config/app.php` の `'timezone' => 'UTC'` を次に置き換える:
-
-```php
-'timezone' => env('APP_TIMEZONE', 'UTC'),
-```
-
-> Laravel 13 のひな型はハードコードのままで `APP_TIMEZONE` が効かない。詳細は `CLAUDE.md §6`。
-
-### 6. Demo パッケージのオートロード登録
-
-`src/composer.json` の `autoload.psr-4` に追記:
-
-```json
-"autoload": {
-    "psr-4": {
-        "App\\": "app/",
-        "Database\\Factories\\": "database/factories/",
-        "Database\\Seeders\\": "database/seeders/",
-        "Demo\\": "Demo/"
-    }
-}
-```
-
-反映:
+### 4. Laravel の `.env` を作成 + キー生成
 
 ```bash
-docker compose exec app composer dump-autoload
-```
-
-### 7. キー生成 + マイグレーション + テストアカウント投入
-
-```bash
+cp src/.env.example src/.env
 docker compose exec app php artisan key:generate
+```
+
+> `src/.env.example` は DB (PostgreSQL) / timezone (Asia/Tokyo) / locale (ja) /
+> queue (database) を **設定済み**。コピーしてキーを生成するだけでよい。
+
+### 5. マイグレーション + テストアカウント投入
+
+```bash
 docker compose exec app php artisan migrate --seed
 ```
 
@@ -214,9 +172,14 @@ docker compose exec app php artisan migrate --seed
 `UserSeeder` / `AdminSeeder` が走り、テストアカウント
 (`user@example.com` / `admin@example.com`、どちらも password=`password`) が DB に投入されます。
 
-→ <http://localhost:8080/login> でユーザー画面、<http://localhost:8080/admin/login> で管理画面を開いて起動確認。
+### 6. フロントエンドのビルド
 
-### 8. job worker の再起動 (初回のみ)
+```bash
+docker compose exec -e HOME=/tmp app npm ci
+docker compose exec -e HOME=/tmp app npm run build
+```
+
+### 7. job worker の再起動 (初回のみ)
 
 ```bash
 docker compose restart job
@@ -227,11 +190,19 @@ docker compose exec job supervisorctl status   # job-worker が RUNNING なら O
 > `queue:work` が FATAL で落ちている。composer install 後に一度再起動すれば
 > supervisor が worker を立て直す。
 
+→ <http://localhost:8080/login> でユーザー画面、<http://localhost:8080/admin/login> で管理画面を開いて起動確認。
+
+> **(参考) このテンプレートをゼロから組んだ際の手順** —
+> `composer create-project laravel/laravel .` → `config/app.php` の timezone を
+> `env('APP_TIMEZONE', 'UTC')` に修正 (CLAUDE.md §6) → `composer.json` に
+> `"Demo\\": "Demo/"` の autoload 追記 (CLAUDE.md §4)。
+> これらは **適用済み** なので clone 後に行う必要はない。
+
 ---
 
 ## 動作確認 (テストアカウント)
 
-セットアップ §7 の `php artisan migrate --seed` でテストアカウントが投入されているはずです。
+セットアップ §5 の `php artisan migrate --seed` でテストアカウントが投入されているはずです。
 あとから再投入 (パスワードリセット相当) したい場合は次のコマンドを単独で実行できます:
 
 ```bash

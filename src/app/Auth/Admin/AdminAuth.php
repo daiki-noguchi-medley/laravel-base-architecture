@@ -4,17 +4,17 @@ declare(strict_types=1);
 
 namespace App\Auth\Admin;
 
-use Demo\Repository\Admin\AdminRow;
+use App\Model\Admin\Admin;
 use Illuminate\Contracts\Auth\Authenticatable;
 
 /**
  * Laravel の Auth ファサードが扱う「認証中の管理者」を表すクラス。
- * Eloquent モデルではなく、AdminRow (DTO) を包んだ readonly オブジェクト。
+ * Eloquent モデルではなく、Admin Model を包んだ readonly オブジェクト。
  */
 final class AdminAuth implements Authenticatable
 {
     public function __construct(
-        private readonly AdminRow $row,
+        private readonly Admin $admin,
     ) {}
 
     public function getAuthIdentifierName(): string
@@ -24,7 +24,7 @@ final class AdminAuth implements Authenticatable
 
     public function getAuthIdentifier(): int
     {
-        return $this->row->id;
+        return $this->admin->id;
     }
 
     public function getAuthPasswordName(): string
@@ -34,12 +34,12 @@ final class AdminAuth implements Authenticatable
 
     public function getAuthPassword(): string
     {
-        return $this->row->password;
+        return $this->admin->password;
     }
 
     public function getRememberToken(): ?string
     {
-        return $this->row->rememberToken;
+        return $this->admin->rememberToken;
     }
 
     public function setRememberToken($value): void
@@ -56,16 +56,16 @@ final class AdminAuth implements Authenticatable
 
     public function id(): int
     {
-        return $this->row->id;
+        return $this->admin->id;
     }
 
     public function name(): string
     {
-        return $this->row->name;
+        return $this->admin->name;
     }
 
     public function email(): string
     {
-        return $this->row->email;
+        return $this->admin->email;
     }
 }

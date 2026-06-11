@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Resource\Admin\User;
 
-use Demo\Repository\User\UserRow;
+use App\Model\User\User;
 use Illuminate\Contracts\Support\Arrayable;
 
 /**
@@ -15,7 +15,7 @@ use Illuminate\Contracts\Support\Arrayable;
 final readonly class UserListItemResource implements Arrayable
 {
     public function __construct(
-        private UserRow $user,
+        private User $user,
     ) {}
 
     /**

@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
-use Demo\Service\Admin\AdminAuthService;
-use Demo\Service\Admin\AdminAuthServiceImpl;
-use Demo\Service\Admin\UserManagementService;
-use Demo\Service\Admin\UserManagementServiceImpl;
-use Demo\Service\Kanban\KanbanService;
-use Demo\Service\Kanban\KanbanServiceImpl;
-use Demo\Service\User\UserAuthService;
-use Demo\Service\User\UserAuthServiceImpl;
+use Demo\Admin\Service\AdminAuthService;
+use Demo\Admin\Service\AdminAuthServiceImpl;
+use Demo\Admin\Service\UserManagementService;
+use Demo\Admin\Service\UserManagementServiceImpl;
+use Demo\Kanban\Service\KanbanService;
+use Demo\Kanban\Service\KanbanServiceImpl;
+use Demo\User\Service\UserAuthService;
+use Demo\User\Service\UserAuthServiceImpl;
 use Illuminate\Support\ServiceProvider;
 
 /**

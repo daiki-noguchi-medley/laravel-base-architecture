@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Admin\UserManagement;
 
 use App\Auth\Admin\AdminAuth;
-use Demo\Repository\Admin\AdminRepository;
+use Demo\Admin\Repository\AdminRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;

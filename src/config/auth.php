@@ -1,7 +1,5 @@
 <?php
 
-use App\Models\User;
-
 return [
 
     /*
@@ -38,9 +36,11 @@ return [
     */
 
     'guards' => [
+        // デフォルトの web ガードも自前 Provider (userauth) を使う
+        // (Eloquent の App\Models\User は使わないため 'users' provider は削除済み)
         'web' => [
             'driver' => 'session',
-            'provider' => 'users',
+            'provider' => 'user',
         ],
 
         // 一般ユーザー用 (Blade + htmx + Alpine.js)
@@ -74,11 +74,6 @@ return [
     */
 
     'providers' => [
-        'users' => [
-            'driver' => 'eloquent',
-            'model' => env('AUTH_MODEL', User::class),
-        ],
-
         // 一般ユーザー用カスタム Provider (Auth::provider('userauth') で登録)
         'user' => [
             'driver' => 'userauth',
@@ -111,7 +106,7 @@ return [
 
     'passwords' => [
         'users' => [
-            'provider' => 'users',
+            'provider' => 'user',
             'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE', 'password_reset_tokens'),
             'expire' => 60,
             'throttle' => 60,

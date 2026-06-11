@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Auth\Admin;
 
-use Demo\Repository\Admin\AdminRepository;
+use Demo\Admin\Repository\AdminRepository;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\UserProvider;
 
@@ -20,20 +20,20 @@ final class AdminAuthProvider implements UserProvider
 
     public function retrieveById($identifier): ?Authenticatable
     {
-        $row = $this->adminRepository->findById((int) $identifier);
-        return $row ? new AdminAuth($row) : null;
+        $admin = $this->adminRepository->findById((int) $identifier);
+        return $admin ? new AdminAuth($admin) : null;
     }
 
     public function retrieveByToken($identifier, $token): ?Authenticatable
     {
-        $row = $this->adminRepository->findById((int) $identifier);
-        if ($row === null || $row->rememberToken === null) {
+        $admin = $this->adminRepository->findById((int) $identifier);
+        if ($admin === null || $admin->rememberToken === null) {
             return null;
         }
-        if (!hash_equals($row->rememberToken, (string) $token)) {
+        if (!hash_equals($admin->rememberToken, (string) $token)) {
             return null;
         }
-        return new AdminAuth($row);
+        return new AdminAuth($admin);
     }
 
     public function updateRememberToken(Authenticatable $user, $token): void
@@ -47,8 +47,8 @@ final class AdminAuthProvider implements UserProvider
         if ($email === null) {
             return null;
         }
-        $row = $this->adminRepository->findByEmail((string) $email);
-        return $row ? new AdminAuth($row) : null;
+        $admin = $this->adminRepository->findByEmail((string) $email);
+        return $admin ? new AdminAuth($admin) : null;
     }
 
     public function validateCredentials(Authenticatable $user, array $credentials): bool

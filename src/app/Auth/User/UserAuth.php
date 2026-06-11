@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace App\Auth\User;
 
-use Demo\Repository\User\UserRow;
+use App\Model\User\User;
 use Illuminate\Contracts\Auth\Authenticatable;
 
 /**
  * Laravel の Auth ファサードが扱う「認証中のユーザー」を表すクラス。
- * Eloquent モデルではなく、UserRow (DTO) を包んだ readonly オブジェクト。
+ * Eloquent モデルではなく、User Model を包んだ readonly オブジェクト。
  *
  * setRememberToken() は no-op (永続化は UserAuthProvider 側で行う)。
  */
 final class UserAuth implements Authenticatable
 {
     public function __construct(
-        private readonly UserRow $row,
+        private readonly User $user,
     ) {}
 
     public function getAuthIdentifierName(): string
@@ -26,7 +26,7 @@ final class UserAuth implements Authenticatable
 
     public function getAuthIdentifier(): int
     {
-        return $this->row->id;
+        return $this->user->id;
     }
 
     public function getAuthPasswordName(): string
@@ -36,12 +36,12 @@ final class UserAuth implements Authenticatable
 
     public function getAuthPassword(): string
     {
-        return $this->row->password;
+        return $this->user->password;
     }
 
     public function getRememberToken(): ?string
     {
-        return $this->row->rememberToken;
+        return $this->user->rememberToken;
     }
 
     /**
@@ -62,16 +62,16 @@ final class UserAuth implements Authenticatable
 
     public function id(): int
     {
-        return $this->row->id;
+        return $this->user->id;
     }
 
     public function name(): string
     {
-        return $this->row->name;
+        return $this->user->name;
     }
 
     public function email(): string
     {
-        return $this->row->email;
+        return $this->user->email;
     }
 }

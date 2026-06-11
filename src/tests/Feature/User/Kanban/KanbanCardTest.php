@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Tests\Feature\User\Kanban;
 
 use App\Auth\User\UserAuth;
-use App\Enums\KanbanLane;
-use Demo\Repository\User\UserRepository;
+use App\Enum\Kanban\KanbanLane;
+use Demo\User\Repository\UserRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;

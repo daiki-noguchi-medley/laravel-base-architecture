@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Resource\User\Kanban;
 
-use Demo\Repository\Kanban\KanbanCardRow;
+use App\Model\Kanban\KanbanCard;
 use Illuminate\Contracts\Support\Arrayable;
 
 /**
@@ -15,7 +15,7 @@ use Illuminate\Contracts\Support\Arrayable;
 final readonly class KanbanCardResource implements Arrayable
 {
     public function __construct(
-        private KanbanCardRow $card,
+        private KanbanCard $card,
     ) {}
 
     /**

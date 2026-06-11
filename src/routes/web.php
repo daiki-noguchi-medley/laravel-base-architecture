@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-use App\Http\Controllers\User\Auth\LoginController as UserLoginController;
-use App\Http\Controllers\User\DashboardController as UserDashboardController;
-use App\Http\Controllers\User\Kanban\KanbanCardController;
-use App\Http\Controllers\User\Kanban\KanbanPageController;
+use App\Http\Controller\User\Auth\LoginController as UserLoginController;
+use App\Http\Controller\User\DashboardController as UserDashboardController;
+use App\Http\Controller\User\Kanban\KanbanCardController;
+use App\Http\Controller\User\Kanban\KanbanPageController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {

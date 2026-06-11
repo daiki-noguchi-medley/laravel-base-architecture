@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\ViewModel\User\Kanban;
 
-use App\Enums\KanbanLane;
+use App\Enum\Kanban\KanbanLane;
 
 /**
  * Kanban ボード Blade に渡す ViewModel。

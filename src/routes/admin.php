@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-use App\Http\Controllers\Admin\Auth\LoginController as AdminLoginController;
-use App\Http\Controllers\Admin\DashboardController as AdminDashboardController;
-use App\Http\Controllers\Admin\UserManagement\UserManagementController;
+use App\Http\Controller\Admin\Auth\LoginController as AdminLoginController;
+use App\Http\Controller\Admin\DashboardController as AdminDashboardController;
+use App\Http\Controller\Admin\UserManagement\UserManagementController;
 use Illuminate\Support\Facades\Route;
 
 // =============================================================================

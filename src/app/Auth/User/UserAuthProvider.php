@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Auth\User;
 
-use Demo\Repository\User\UserRepository;
+use Demo\User\Repository\UserRepository;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Auth\UserProvider;
 
@@ -22,20 +22,20 @@ final class UserAuthProvider implements UserProvider
 
     public function retrieveById($identifier): ?Authenticatable
     {
-        $row = $this->userRepository->findById((int) $identifier);
-        return $row ? new UserAuth($row) : null;
+        $user = $this->userRepository->findById((int) $identifier);
+        return $user ? new UserAuth($user) : null;
     }
 
     public function retrieveByToken($identifier, $token): ?Authenticatable
     {
-        $row = $this->userRepository->findById((int) $identifier);
-        if ($row === null || $row->rememberToken === null) {
+        $user = $this->userRepository->findById((int) $identifier);
+        if ($user === null || $user->rememberToken === null) {
             return null;
         }
-        if (!hash_equals($row->rememberToken, (string) $token)) {
+        if (!hash_equals($user->rememberToken, (string) $token)) {
             return null;
         }
-        return new UserAuth($row);
+        return new UserAuth($user);
     }
 
     public function updateRememberToken(Authenticatable $user, $token): void
@@ -49,8 +49,8 @@ final class UserAuthProvider implements UserProvider
         if ($email === null) {
             return null;
         }
-        $row = $this->userRepository->findByEmail((string) $email);
-        return $row ? new UserAuth($row) : null;
+        $user = $this->userRepository->findByEmail((string) $email);
+        return $user ? new UserAuth($user) : null;
     }
 
     public function validateCredentials(Authenticatable $user, array $credentials): bool

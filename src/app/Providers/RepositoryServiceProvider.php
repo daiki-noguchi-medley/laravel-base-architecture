@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
-use Demo\Repository\Admin\AdminRepository;
-use Demo\Repository\Admin\AdminRepositoryImpl;
-use Demo\Repository\Kanban\KanbanCardRepository;
-use Demo\Repository\Kanban\KanbanCardRepositoryImpl;
-use Demo\Repository\User\UserRepository;
-use Demo\Repository\User\UserRepositoryImpl;
+use Demo\Admin\Repository\AdminRepository;
+use Demo\Admin\Repository\AdminRepositoryImpl;
+use Demo\Kanban\Repository\KanbanCardRepository;
+use Demo\Kanban\Repository\KanbanCardRepositoryImpl;
+use Demo\User\Repository\UserRepository;
+use Demo\User\Repository\UserRepositoryImpl;
 use Illuminate\Support\ServiceProvider;
 
 /**

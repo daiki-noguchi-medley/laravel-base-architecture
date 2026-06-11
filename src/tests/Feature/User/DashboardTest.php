@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\User;
 
 use App\Auth\User\UserAuth;
-use Demo\Repository\User\UserRepository;
+use Demo\User\Repository\UserRepository;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;

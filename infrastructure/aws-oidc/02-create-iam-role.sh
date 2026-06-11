@@ -10,7 +10,7 @@
 # 環境変数:
 #   AWS_PROFILE      必須
 #   ROLE_NAME        デフォルト: GitHubActionsRole
-#   GITHUB_OWNER     デフォルト: NOGUD626
+#   GITHUB_OWNER     デフォルト: daiki-noguchi-medley
 #   GITHUB_REPO     デフォルト: laravel-base-architecture
 #   TEMPLATE         デフォルト: trust-policy.json.tmpl (厳密版)
 #                    → 初回動作確認なら TEMPLATE=trust-policy-loose.json.tmpl
@@ -18,7 +18,7 @@
 set -euo pipefail
 
 ROLE_NAME="${ROLE_NAME:-GitHubActionsRole}"
-GITHUB_OWNER="${GITHUB_OWNER:-NOGUD626}"
+GITHUB_OWNER="${GITHUB_OWNER:-daiki-noguchi-medley}"
 GITHUB_REPO="${GITHUB_REPO:-laravel-base-architecture}"
 TEMPLATE="${TEMPLATE:-trust-policy.json.tmpl}"
 

@@ -9,7 +9,7 @@ name: AWS OIDC 接続テスト
 #
 # 事前準備 (AWS Console 側の作業) は docs/infra/oidc-aws.md を参照。
 # - IAM Identity Provider (token.actions.githubusercontent.com)
-# - IAM Role (Trust policy で repo:NOGUD626/laravel-base-architecture:* を許可)
+# - IAM Role (Trust policy で repo:daiki-noguchi-medley/laravel-base-architecture:* を許可)
 # - GitHub repository variable `AWS_IAM_ROLE_ARN` に role ARN を登録
 
 on:

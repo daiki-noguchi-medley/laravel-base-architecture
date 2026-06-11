@@ -33,7 +33,7 @@ OIDC の利点:
 │  aws-actions/configure-aws-credentials@v4      │
 │       ↓ OIDC token (JWT) を発行                │
 │       ↓ iss = token.actions.githubusercontent.com
-│       ↓ sub = repo:NOGUD626/...:ref:refs/heads/main
+│       ↓ sub = repo:daiki-noguchi-medley/...:ref:refs/heads/main
 │       ↓ aud = sts.amazonaws.com                │
 └────────────────┬───────────────────────────────┘
                  ↓ HTTPS POST
@@ -85,7 +85,7 @@ AWS Console → **IAM** → **Roles** → **Create role**
 1. **Trusted entity type**: `Web identity`
 2. **Identity provider**: `token.actions.githubusercontent.com` (Step 1 で作ったもの)
 3. **Audience**: `sts.amazonaws.com`
-4. **GitHub organization**: `NOGUD626`
+4. **GitHub organization**: `daiki-noguchi-medley`
 5. **GitHub repository**: `laravel-base-architecture`
 6. **GitHub branch** (任意): 入力すると `:ref:refs/heads/<branch>` で絞られる。初回は空欄で OK
 
@@ -99,7 +99,7 @@ AWS Console → **IAM** → **Roles** → **Create role**
 
 ### Step 3. Trust policy を必要なら絞る
 
-デフォルトの Trust policy は `repo:NOGUD626/laravel-base-architecture:*` (リポジトリ全体から assume 可) になっている。
+デフォルトの Trust policy は `repo:daiki-noguchi-medley/laravel-base-architecture:*` (リポジトリ全体から assume 可) になっている。
 ブランチや tag を絞りたい場合は IAM Role > **Trust relationships** > **Edit trust policy** で次のように編集:
 
 ```json
@@ -118,9 +118,9 @@ AWS Console → **IAM** → **Roles** → **Create role**
         },
         "StringLike": {
           "token.actions.githubusercontent.com:sub": [
-            "repo:NOGUD626/laravel-base-architecture:ref:refs/heads/main",
-            "repo:NOGUD626/laravel-base-architecture:ref:refs/tags/v*",
-            "repo:NOGUD626/laravel-base-architecture:environment:production"
+            "repo:daiki-noguchi-medley/laravel-base-architecture:ref:refs/heads/main",
+            "repo:daiki-noguchi-medley/laravel-base-architecture:ref:refs/tags/v*",
+            "repo:daiki-noguchi-medley/laravel-base-architecture:environment:production"
           ]
         }
       }
@@ -133,11 +133,11 @@ AWS Console → **IAM** → **Roles** → **Create role**
 
 | 何から assume したいか | sub の値 |
 |---|---|
-| 任意のブランチ / PR / tag (緩い) | `repo:NOGUD626/laravel-base-architecture:*` |
-| main ブランチのみ | `repo:NOGUD626/laravel-base-architecture:ref:refs/heads/main` |
-| v* タグのみ | `repo:NOGUD626/laravel-base-architecture:ref:refs/tags/v*` |
-| Environments (production など) | `repo:NOGUD626/laravel-base-architecture:environment:production` |
-| Pull Request (危険、避ける) | `repo:NOGUD626/laravel-base-architecture:pull_request` |
+| 任意のブランチ / PR / tag (緩い) | `repo:daiki-noguchi-medley/laravel-base-architecture:*` |
+| main ブランチのみ | `repo:daiki-noguchi-medley/laravel-base-architecture:ref:refs/heads/main` |
+| v* タグのみ | `repo:daiki-noguchi-medley/laravel-base-architecture:ref:refs/tags/v*` |
+| Environments (production など) | `repo:daiki-noguchi-medley/laravel-base-architecture:environment:production` |
+| Pull Request (危険、避ける) | `repo:daiki-noguchi-medley/laravel-base-architecture:pull_request` |
 
 > ⚠️ **`:pull_request` を sub に含めない**。外部 fork PR からも assume できてしまう。
 > 本番運用では `main` か `tags/v*` か `environment:production` に絞ること。
@@ -146,7 +146,7 @@ AWS Console → **IAM** → **Roles** → **Create role**
 
 GitHub の Web UI で:
 
-1. <https://github.com/NOGUD626/laravel-base-architecture/settings/variables/actions> を開く
+1. <https://github.com/daiki-noguchi-medley/laravel-base-architecture/settings/variables/actions> を開く
 2. **「New repository variable」** をクリック
 3. **Name**: `AWS_IAM_ROLE_ARN`
 4. **Value**: Step 2 でコピーした role の ARN (例: `arn:aws:iam::123456789012:role/GitHubActionsRole`)
@@ -159,7 +159,7 @@ GitHub の Web UI で:
 
 GitHub Actions の **「AWS OIDC 接続テスト」** workflow を手動起動:
 
-1. <https://github.com/NOGUD626/laravel-base-architecture/actions/workflows/aws-oidc-connection-test.yml> を開く
+1. <https://github.com/daiki-noguchi-medley/laravel-base-architecture/actions/workflows/aws-oidc-connection-test.yml> を開く
 2. 右上の **「Run workflow」** → ブランチ `main` を選択 → 「Run workflow」
 3. 数十秒で完了する。最後のログに以下のような出力が出れば成功:
 
@@ -184,7 +184,7 @@ GitHub Actions の **「AWS OIDC 接続テスト」** workflow を手動起動:
 
 → Trust policy の `sub` claim が一致していない。AWS Console で IAM Role > Trust relationships を開き、
    `Condition.StringLike.token.actions.githubusercontent.com:sub` の値と、実際の Actions が送ってくる
-   sub (`repo:NOGUD626/laravel-base-architecture:ref:refs/heads/<branch>`) が一致するか確認。
+   sub (`repo:daiki-noguchi-medley/laravel-base-architecture:ref:refs/heads/<branch>`) が一致するか確認。
 
 実行中の sub を見るには、workflow に以下を追加してログを取る:
 

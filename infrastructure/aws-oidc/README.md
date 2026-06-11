@@ -117,7 +117,7 @@ PURGE_PROVIDER=1 ./99-cleanup.sh
 | 変えたいもの | 環境変数 | デフォルト |
 |---|---|---|
 | Role 名 | `ROLE_NAME` | `GitHubActionsRole` |
-| GitHub オーナー | `GITHUB_OWNER` | `NOGUD626` |
+| GitHub オーナー | `GITHUB_OWNER` | `daiki-noguchi-medley` |
 | GitHub リポジトリ | `GITHUB_REPO` | `laravel-base-architecture` |
 | GitHub variable 名 | `VARIABLE_NAME` | `AWS_IAM_ROLE_ARN` |
 | Trust policy テンプレ | `TEMPLATE` | `trust-policy.json.tmpl` |

@@ -5,14 +5,14 @@
 # `gh workflow run` → `gh run watch` → `gh run view --log` を一通り実行。
 #
 # 環境変数:
-#   GITHUB_OWNER     デフォルト: NOGUD626
+#   GITHUB_OWNER     デフォルト: daiki-noguchi-medley
 #   GITHUB_REPO     デフォルト: laravel-base-architecture
 #   WORKFLOW_FILE    デフォルト: aws-oidc-connection-test.yml
 #   REF              デフォルト: main
 
 set -euo pipefail
 
-GITHUB_OWNER="${GITHUB_OWNER:-NOGUD626}"
+GITHUB_OWNER="${GITHUB_OWNER:-daiki-noguchi-medley}"
 GITHUB_REPO="${GITHUB_REPO:-laravel-base-architecture}"
 WORKFLOW_FILE="${WORKFLOW_FILE:-aws-oidc-connection-test.yml}"
 REF="${REF:-main}"

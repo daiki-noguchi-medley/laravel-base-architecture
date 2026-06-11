@@ -105,7 +105,7 @@ gh workflow run aws-ecr-push.yml --ref main
 
 ### GitHub Web UI から
 
-1. <https://github.com/NOGUD626/laravel-base-architecture/actions/workflows/aws-ecr-push.yml> を開く
+1. <https://github.com/daiki-noguchi-medley/laravel-base-architecture/actions/workflows/aws-ecr-push.yml> を開く
 2. 「Run workflow」を押す
 3. **「Use workflow from」**で対象ブランチ or tag を選択 (`Tags` タブで `v*` も選べる)
 4. 「Run workflow」を確定 (他の入力欄はない)

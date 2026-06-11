@@ -129,7 +129,7 @@ cat > /tmp/gha-trust-policy.json <<EOF
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
         },
         "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:NOGUD626/laravel-base-architecture:*"
+          "token.actions.githubusercontent.com:sub": "repo:daiki-noguchi-medley/laravel-base-architecture:*"
         }
       }
     }
@@ -150,7 +150,7 @@ cat /tmp/gha-trust-policy.json | python3 -m json.tool > /dev/null && echo "JSON 
 aws iam create-role \
   --role-name GitHubActionsRole \
   --assume-role-policy-document file:///tmp/gha-trust-policy.json \
-  --description "OIDC role assumed by GitHub Actions in NOGUD626/laravel-base-architecture"
+  --description "OIDC role assumed by GitHub Actions in daiki-noguchi-medley/laravel-base-architecture"
 ```
 
 実出力 (抜粋):
@@ -202,9 +202,9 @@ cat > /tmp/gha-trust-policy-strict.json <<EOF
         },
         "StringLike": {
           "token.actions.githubusercontent.com:sub": [
-            "repo:NOGUD626/laravel-base-architecture:ref:refs/heads/main",
-            "repo:NOGUD626/laravel-base-architecture:ref:refs/tags/v*",
-            "repo:NOGUD626/laravel-base-architecture:environment:production"
+            "repo:daiki-noguchi-medley/laravel-base-architecture:ref:refs/heads/main",
+            "repo:daiki-noguchi-medley/laravel-base-architecture:ref:refs/tags/v*",
+            "repo:daiki-noguchi-medley/laravel-base-architecture:environment:production"
           ]
         }
       }
@@ -233,13 +233,13 @@ aws iam update-assume-role-policy \
 ```bash
 gh variable set AWS_IAM_ROLE_ARN \
   --body "$ROLE_ARN" \
-  --repo NOGUD626/laravel-base-architecture
+  --repo daiki-noguchi-medley/laravel-base-architecture
 ```
 
 登録確認:
 
 ```bash
-gh variable list --repo NOGUD626/laravel-base-architecture
+gh variable list --repo daiki-noguchi-medley/laravel-base-architecture
 ```
 
 実出力:
@@ -264,7 +264,7 @@ AWS_IAM_ROLE_ARN  arn:aws:iam::<ACCOUNT_ID>:role/GitHubActionsRole   less than a
 
 ```bash
 gh workflow run aws-oidc-connection-test.yml \
-  --repo NOGUD626/laravel-base-architecture \
+  --repo daiki-noguchi-medley/laravel-base-architecture \
   --ref main
 ```
 
@@ -274,7 +274,7 @@ gh workflow run aws-oidc-connection-test.yml \
 sleep 5
 RUN_ID=$(gh run list --workflow aws-oidc-connection-test.yml --limit 1 \
   --json databaseId --jq '.[0].databaseId' \
-  --repo NOGUD626/laravel-base-architecture)
+  --repo daiki-noguchi-medley/laravel-base-architecture)
 echo "$RUN_ID"
 ```
 
@@ -287,7 +287,7 @@ echo "$RUN_ID"
 ### 4-3. 完了まで watch
 
 ```bash
-gh run watch "$RUN_ID" --repo NOGUD626/laravel-base-architecture --exit-status
+gh run watch "$RUN_ID" --repo daiki-noguchi-medley/laravel-base-architecture --exit-status
 ```
 
 完了するとプロンプトに戻る。失敗の場合は `gh run view "$RUN_ID" --log ...` でログ確認。
@@ -295,7 +295,7 @@ gh run watch "$RUN_ID" --repo NOGUD626/laravel-base-architecture --exit-status
 ### 4-4. 接続結果のログを確認
 
 ```bash
-gh run view "$RUN_ID" --log --repo NOGUD626/laravel-base-architecture \
+gh run view "$RUN_ID" --log --repo daiki-noguchi-medley/laravel-base-architecture \
   | grep -A6 "get-caller-identity で接続確認" \
   | head -15
 ```
@@ -388,7 +388,7 @@ done
 aws iam delete-role --role-name GitHubActionsRole
 
 # 3) GitHub variable を削除
-gh variable delete AWS_IAM_ROLE_ARN --repo NOGUD626/laravel-base-architecture
+gh variable delete AWS_IAM_ROLE_ARN --repo daiki-noguchi-medley/laravel-base-architecture
 ```
 
 ### Provider まで消す (このアカウントで他に GitHub OIDC を使わない場合)

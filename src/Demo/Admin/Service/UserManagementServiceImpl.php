@@ -14,7 +14,7 @@ final class UserManagementServiceImpl implements UserManagementService
 {
     /**
      * 自動生成するパスワードの長さ。
-     * 英大小数字記号混在で 16 文字 → 十分な強度。
+     * Str::random による英大小数字 16 文字 → 十分な強度。
      */
     private const int GENERATED_PASSWORD_LENGTH = 16;
 

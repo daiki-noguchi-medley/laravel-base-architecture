@@ -17,7 +17,7 @@ use Illuminate\Support\ServiceProvider;
 /**
  * Service の interface → 実装 (Impl) の DI バインドを集約する Provider。
  *
- * 新しい Service を `Demo/Service/<Logic>/` に追加したら、ここで
+ * 新しい Service を `Demo/<ドメイン>/Service/` に追加したら、ここで
  * `$this->app->bind(XxxService::class, XxxServiceImpl::class)` を追記する。
  *
  * (Repository の binding は RepositoryServiceProvider、Auth::provider() の登録は

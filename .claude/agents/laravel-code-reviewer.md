@@ -16,7 +16,8 @@ model: sonnet
 ### 1. 命名規則
 
 - **enum case / 定数** は **大文字スネークケース** (`UserStatus::ACTIVE`, `Limit::MAX_RETRY_COUNT`)
-- **DB テーブル名** は **単数形** (`user`, `tag`)。Eloquent モデルに `protected $table = 'user'` が明示されているか
+- **DB テーブル名** は **単数形** (`user`, `tag`)。マイグレーションの `Schema::create('...')` が単数形か確認。
+  なお **Eloquent モデル (`extends Model`) はこのプロジェクトでは使わない** — 存在したらそれ自体を違反として報告
 - **複数件の変数 / 関数名** は `~List` サフィックス (`$userList`, `getUserList()`)
 - **略語禁止** — 検出対象:
   - 変数: `$cnt`, `$lst`, `$usr`, `$res`, `$tmp`, `$temp`, `$data`, `$val`, `$item`, `$x`, `$y` (スコープ広いとき)
@@ -24,6 +25,8 @@ model: sonnet
   - 許容される慣用略語: `id`, `url`, `uri`, `http`, `ms`, `sec`, ループ内の `$i` `$k` `$v`
 - **命名から処理が予測できないもの禁止** — 検出対象:
   - メソッド: `process()`, `handle()`, `execute()`, `doSomething()`, `manage()`, `update()` (何を更新か不明)
+  - **除外 (フレームワーク規定)**: Job / Console Command の `handle()` (Laravel 規定メソッド)、
+    Controller の RESTful アクション (`index` / `show` / `store` / `update` / `destroy`) は違反にしない
 - **bool 関数** は `is~` / `has~` / `can~` で始まっているか
 
 ### 2. レイヤー構造 (Controller → Service → Repository)
@@ -86,9 +89,10 @@ enum の配列、設定値、プリミティブも例外なし。Controller の 
 違反検出:
 
 ```bash
-# Controller が view(..., [...]) に何かを渡している箇所を抽出
-grep -rnE "return view\([^)]+,\s*\[" src/app/Http/Controller --include="*.php" -A 5 \
-  | grep -E "'(?!vm')" | head -20
+# Controller が view(..., [...]) に渡しているキーを抽出し、'vm' 以外があれば違反
+# (否定先読みは grep -E では使えないため、-v で除外する)
+grep -rn "return view(" src/app/Http/Controller --include="*.php" -A 5 \
+  | grep -E "'[a-zA-Z_]+' *=>" | grep -v "'vm'" | head -20
 ```
 
 OK パターン (Blade 渡しは vm のみ):

@@ -94,6 +94,22 @@ return [
             'processors' => [PsrLogMessageProcessor::class],
         ],
 
+        // 運用ログ (定期実行の件数、ジョブの見送り、外部連携のエラー等) をコンテナの
+        // 標準出力へ流す。docker compose logs / CloudWatch から見える経路がこれ。
+        //
+        // ⚠ 「発火はしているが 1 件も進んでいない」を外から見分けるため、
+        //    ジョブは 0 件でもここへ残す (CLAUDE.md §7「ジョブ側の作法」)。
+        'stdout' => [
+            'driver' => 'monolog',
+            'level' => env('LOG_LEVEL', 'debug'),
+            'handler' => StreamHandler::class,
+            'handler_with' => [
+                'stream' => 'php://stdout',
+            ],
+            'formatter' => env('LOG_STDOUT_FORMATTER'),
+            'processors' => [PsrLogMessageProcessor::class],
+        ],
+
         'stderr' => [
             'driver' => 'monolog',
             'level' => env('LOG_LEVEL', 'debug'),

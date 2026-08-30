@@ -13,7 +13,9 @@ use Illuminate\Support\Facades\Route;
 // =============================================================================
 Route::middleware('guest:admin')->group(function () {
     Route::get('/admin/login',  [AdminLoginController::class, 'showLoginForm'])->name('admin.login');
-    Route::post('/admin/login', [AdminLoginController::class, 'login']);
+    // ⚠ ユーザー面と同じ理由で回数制限を付ける (routes/web.php 参照)。
+    //   管理者のログインは «取られたときの被害» が大きいぶん、ユーザー面より厳しくする。
+    Route::post('/admin/login', [AdminLoginController::class, 'login'])->middleware('throttle:5,1');
 });
 
 Route::middleware('auth:admin')->group(function () {

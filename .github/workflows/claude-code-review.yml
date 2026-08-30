@@ -1,0 +1,235 @@
+# PR を «このリポジトリのサブエージェント» でレビューする。
+# 指摘の中身は .claude/agents/ が持ち、ここは起動条件と差分の渡し方だけを決める。
+#
+# ⚠ これは骨組み。`ANTHROPIC_API_KEY` を登録していないリポジトリでは
+#   «見送りました» と notice を出して緑で終わる (未登録で赤くなると誰も直さないまま放置される)。
+# ⚠ 走らせるのは «人が「見てくれ」と言った瞬間» だけ (PR を開いた / draft を ready にした /
+#   コメントに @claude と書いた)。push では走らせない。コミットごとに回すと 1 PR で何十回も
+#   API を叩き、同じ指摘がレビュー欄を埋める。
+# ⚠ @claude での起動は main に入ってから効く。issue_comment はデフォルトブランチ側の定義で動く。
+# ⚠ anthropics/claude-code-action は v1.0.94 未満に脆弱性がある。SHA で固定し、更新は
+#   tags を見て SHA ごと差し替える。
+name: Claude Code Review
+
+on:
+  pull_request:
+    types: [opened, ready_for_review]
+  issue_comment:
+    types: [created]
+
+# 同じ PR に対する二重起動を防ぐ。@claude を連投したときは最後の 1 本だけ残す。
+concurrency:
+  group: claude-review-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    # draft は対象外 (説明文が埋まる前に走らせても精度が出ない)。
+    # bot が起点のもの (Dependabot / Renovate / 自分自身のコメント) も対象外。
+    # ⚠ bot を除外しないと «Claude のコメント → @claude を含む → また起動» でループする。
+    # ⚠ コメント起動は «書き込み権限のある人» に限る。アクション側にも同じ検査があるが、
+    #   それはジョブが起動した後の検査で、ランナーと API の消費は先に発生する。ここで止める。
+    if: |
+      (github.event_name == 'pull_request' &&
+       github.event.pull_request.draft == false &&
+       !endsWith(github.event.pull_request.user.login, '[bot]')) ||
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request &&
+       contains(github.event.comment.body, '@claude') &&
+       !endsWith(github.event.comment.user.login, '[bot]') &&
+       contains(fromJson('["OWNER", "MEMBER", "COLLABORATOR"]'), github.event.comment.author_association))
+
+    runs-on: ubuntu-latest
+    # 超えるのは «止まっている» ときなので打ち切る。
+    timeout-minutes: 30
+
+    permissions:
+      contents: read
+      pull-requests: write # inline comment / sticky comment の投稿に要る
+      issues: read
+      # ⚠ id-token: write は付けない。App トークンの交換 (OIDC) に要る権限だが、
+      #   下で github_token を渡しているため交換は起きない。App を入れて github_token を
+      #   外すときは、この権限を戻すこと。
+
+    steps:
+      # ⚠ secrets コンテキストはジョブの if: では使えないので、ステップで見て後段を切り替える。
+      #   テンプレートを clone しただけの状態で赤くならないようにするため。
+      - name: API キーが登録されているか見る
+        id: key
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -n "${ANTHROPIC_API_KEY:-}" ]; then
+            echo 'configured=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'configured=false' >> "$GITHUB_OUTPUT"
+            echo '::notice::ANTHROPIC_API_KEY が未登録のため、サブエージェントによるレビューは見送りました。'
+          fi
+
+      # ⚠ issue_comment はデフォルトブランチ側の定義と secrets で走る。入口 (if:) で見ているのは
+      #   «コメントを書いた人» だけなので、メンバーが fork の PR に @claude と書くと、fork の
+      #   head を checkout したランナーに API キーと書き込み可能な GITHUB_TOKEN が載る。
+      #   head が同一リポジトリの PR に限る (fork は pull_request 契機でも secrets が
+      #   渡らないので、そちらは元から動かない)。
+      - name: コメント起動での fork head を弾く
+        if: steps.key.outputs.configured == 'true' && github.event_name == 'issue_comment'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+        run: |
+          set -euo pipefail
+          head_repo=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq '.head.repo.full_name // ""')
+          if [ "$head_repo" != "$GITHUB_REPOSITORY" ]; then
+            echo "::error::fork の PR (head: ${head_repo:-取得できず}) はコメント起動の対象外。"
+            exit 1
+          fi
+
+      # PR の HEAD を取る。pull_request の既定 (merge ref) ではなく HEAD に固定するのは、
+      # コメント契機 (issue_comment) と同じ形にして差分の取り方を 1 本にするため。
+      # ⚠ fetch-depth: 0 は merge-base を確実に引くため。浅いと base 側が無くて差分が取れない。
+      # ⚠ persist-credentials: false は付けない (zizmor の artipacked はここでは無視する)。
+      #   track_progress: true を渡すとアクションは tag モードに固定され、open PR では必ず
+      #   `git fetch origin <head>` → checkout する。この fetch はアクションが認証を張り直す
+      #   より前に走るので、認証を消すと private では `could not read Username` で必ず落ちる。
+      #   ⚠ ci.yml の «ワークフローの検査» は逆に persist-credentials: false を付けている。
+      #     あちらは $PWD をコンテナへ丸ごと渡すので判断が違う。揃えないこと。
+      - name: リポジトリを checkout する
+        if: steps.key.outputs.configured == 'true'
+        uses: actions/checkout@v4 # zizmor: ignore[artipacked]
+        with:
+          ref: ${{ github.event_name == 'issue_comment' && format('refs/pull/{0}/head', github.event.issue.number) || github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      # 差分と PR 本文を «ファイル» に落としてから Claude に渡す。
+      # ⚠ サブエージェント (.claude/agents/) が使えるのは Read / Grep / Glob だけで、
+      #   GitHub の MCP ツールは渡らない。ここで固定のパスに置いてしまえば、
+      #   どの体も Read だけで差分に届く。
+      - name: PR の文脈を集める
+        if: steps.key.outputs.configured == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event_name == 'issue_comment' && github.event.issue.number || github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          mkdir -p .claude-review
+
+          gh pr view "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" \
+            --json number,title,body,author,baseRefName,headRefName,url \
+            > .claude-review/pr.json
+
+          # ⚠ ここで git fetch し直さない。fetch-depth: 0 が refs/heads/* を origin/* へ
+          #   取ってあるので、取り直す必要が無い。
+          base_ref=$(jq -r .baseRefName .claude-review/pr.json)
+          base_sha=$(git merge-base "origin/$base_ref" HEAD)
+          echo "$base_sha" > .claude-review/base-sha.txt
+
+          git diff --name-only "$base_sha" HEAD > .claude-review/changed-files.txt
+          git diff "$base_sha" HEAD            > .claude-review/diff.patch
+
+          # ⚠ すでに付いている inline を渡す。これが無いと «@claude で再レビュー» のたびに
+          #   同じ行へ同じ指摘が積まれる (sticky comment が束ねるのは summary だけ)。
+          # ⚠ --paginate と --jq を併せると、jq が «ページごとに» 適用されて [...][...] と
+          #   連なった壊れた JSON になる (1 ページ 30 件なので 31 件目から)。壊れると
+          #   重複抑制が黙って効かなくなるため、1 件ずつ出して jq -s で束ね直す。
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments" --paginate \
+            --jq '.[] | {path, line, user: .user.login, body: .body[0:400]}' \
+            | jq -s '.' > .claude-review/existing-comments.json
+
+          echo "base=$base_sha / changed=$(wc -l < .claude-review/changed-files.txt) files"
+          cat .claude-review/changed-files.txt
+
+      # ⚠ --allowedTools の値は必ずクォートで囲う。囲わないと空白で argv に割れ、
+      #   全パターンが権限拒否になったうえでジョブは緑のまま終わる。
+      # ⚠ inline comment の MCP (mcp__github_inline_comment__*) は、ここに書いたときだけ使える。
+      #   summary の MCP は track_progress: true が自動で足すので列挙は要らない
+      #   (スキルの allowed-tools は手元用で CI では効かない)。
+      - name: サブエージェントでレビューする
+        id: claude
+        if: steps.key.outputs.configured == 'true'
+        # ⚠ ジョブの上限とは別に、この 1 ステップにも上限を置く。ジョブ側で打ち切ると
+        #   後段 (実行ログの要約) ごと落ちて «何をして止まったか» が残らない。
+        timeout-minutes: 22
+        uses: anthropics/claude-code-action@1f291e1cfe0f5fc21db2aef19af844591600ade7 # v1.0.206
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # ⚠ 既定は Claude GitHub App 経由。App を入れていないリポジトリでも動くよう
+          #   GITHUB_TOKEN を渡している (App を入れたらこの 1 行を消せば既定に戻る)。
+          #   割り切り: コメント主体が github-actions[bot] になる / App 経路にある
+          #   «workflow がデフォルトブランチと違う PR では実行を見送る» 保護が効かない。
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          # ⚠ 手順はスキルにあるが «途中で終わる» 揺れが出るのでここでも一押しする。
+          #   «結果を受け取った直後に終了する» と «そもそも起こさず自分で読んで済ませる» の
+          #   2 種類が確認されている。
+          prompt: >-
+            /review-pr
+            https://github.com/${{ github.repository }}/pull/${{ github.event_name == 'issue_comment' && github.event.issue.number || github.event.pull_request.number }}
+            —— スキルの対応表に当たる変更があるなら、そのサブエージェントを必ず起動すること。
+            自分で差分を読んで代わりに済ませない。
+            —— サブエージェントの結果を受け取った時点で終了しないこと。
+            指摘を束ね、必要な inline を投稿し、進行中ではない最終の summary に書き換えてから終わること。
+          # ⚠ Task はここに書かないと拒否され、レビューが途中で終わったままジョブは緑になる。
+          # ⚠ Bash を一切渡さない。`git diff --no-index /dev/null <パス>` で任意のファイルが読め、
+          #   `git diff --output=<パス>` で書き込みまでできる。PR 本文・コメント・差分は外から
+          #   書ける入力なので、そこからランナー上の秘密を読み PR に書く経路になる。
+          #   差分は前段が .claude-review/ に落としてあり、PR 本文も pr.json にあるので要らない。
+          # ⚠ Write は --allowedTools に無くても通るので disallowed にも明示する。ここの値は
+          #   アクション既定 (WebSearch / WebFetch) を上書きせず、Set に結合される。
+          claude_args: |
+            --allowedTools "Task,Read,Glob,Grep,mcp__github_inline_comment__create_inline_comment"
+            --disallowedTools "Bash,Write,Edit,MultiEdit,NotebookEdit"
+            --model "claude-sonnet-5"
+          # ⚠ prompt を渡した automation mode は «既定では PR にコメントを付けない» (結果は実行ログだけ)。
+          #   summary を PR 上に返させるにはこれが必要。
+          track_progress: true
+          # 同じ PR を再レビューしたときは、コメントを増やさず同じ 1 件を書き換える。
+          use_sticky_comment: true
+
+      # 何のツールを何回使い、何が拒否されたかを実行ログから取り出す。
+      # ⚠ このアクションは拒否の «件数» しか出さない。どのツールが拒否されたか分からないと、
+      #   レビューが途中で終わる原因に手が届かない。
+      # ⚠ 取り出した要約だけを表示し、実行ログ本体は artifact に上げない。
+      #   execution.json には Claude が読んだ内容がそのまま載る。
+      - name: 実行ログを要約する
+        if: always() && steps.key.outputs.configured == 'true'
+        env:
+          EXECUTION_FILE: ${{ steps.claude.outputs.execution_file }}
+        run: |
+          set -uo pipefail
+          if [ -z "${EXECUTION_FILE:-}" ] || [ ! -f "$EXECUTION_FILE" ]; then
+            echo "::warning::実行ログが取れなかった (execution_file=${EXECUTION_FILE:-未設定})"
+            exit 0
+          fi
+
+          echo "----- 使ったツール -----"
+          jq -r '[.[] | select(.type == "assistant") | .message.content[]? | select(.type == "tool_use") | .name]
+                 | group_by(.) | map("\(.[0])\t\(length) 回") | .[]' "$EXECUTION_FILE" || true
+
+          # ⚠ «要求した体» と «その結果» を並べる。要求だけ見ていると «起動したつもり» を
+          #   本当に起動できたのかと取り違える (体が一覧に無いと not found で返る)。
+          echo "----- サブエージェントの起動 (要求 → 結果) -----"
+          jq -r '
+            ([.[] | select(.type == "user") | .message.content[]?
+              | select(.type == "tool_result")
+              | {key: .tool_use_id, value: (if .is_error == true then "失敗" else "成功" end)}]
+             | from_entries) as $r
+            | [.[] | select(.type == "assistant") | .message.content[]?
+               | select(.type == "tool_use" and (.name == "Agent" or .name == "Task"))
+               | "\(.input.subagent_type // "?") → \($r[.id] // "結果なし")"] | .[]' "$EXECUTION_FILE" || true
+
+          # ⚠ Skill ツールは «成功しても» is_error で返る (本文を指示として差し込む仕組みのため)。
+          #   これを拒否として並べると、健全な実行を «何か拒否されている» と読み違える。除外する。
+          echo "----- 失敗・拒否された呼び出し (無ければ何も出ない) -----"
+          jq -r '
+            ([.[] | select(.type == "assistant") | .message.content[]?
+              | select(.type == "tool_use") | {key: .id, value: .name}] | from_entries) as $names
+            | .[] | select(.type == "user") | .message.content[]?
+            | select(.type == "tool_result" and .is_error == true)
+            | ($names[.tool_use_id] // "?") as $name
+            | ((.content | if type == "array" then map(.text? // "") | join(" ") else tostring end)) as $text
+            | select($name != "Skill" or ($text | startswith("Execute skill:") | not))
+            | "[\($name)] \($text[0:300])"
+          ' "$EXECUTION_FILE" || true

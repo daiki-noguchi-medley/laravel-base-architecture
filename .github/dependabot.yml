@@ -1,0 +1,54 @@
+# 依存の更新を追う。
+#
+# ⚠ github-actions はサードパーティを SHA で固定している (.github/zizmor.yml の方針)。
+#   固定したままだと更新は人手になり、必ず止まる。Dependabot は SHA 固定のまま
+#   新しい SHA へ差し替える PR を出すので、固定と更新を両立できる。
+# ⚠ composer / npm も対象にする。ここに載せておかないと Dependabot の security update
+#   (既知の脆弱性が公表されたときの自動 PR) が動かず、更新の要否に気づく口が
+#   「誰かが手元で audit を打つ」しか無くなる。
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    # ⚠ まとめないと action ごとに PR が立つ。有効化した直後は上限いっぱいが同時に開き、
+    #   通知がその更新で埋まる。レビューも 1 回で済むので、まとめて出す。
+    groups:
+      github-actions:
+        patterns:
+          - '*'
+
+  # composer.json / composer.lock は src/ 配下にある。
+  - package-ecosystem: composer
+    directory: /src
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      composer:
+        patterns:
+          - '*'
+
+  # package.json / package-lock.json も src/ 配下にある (Vite / React のビルド依存)。
+  - package-ecosystem: npm
+    directory: /src
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      npm:
+        patterns:
+          - '*'
+
+  # CDK (infrastructure/cdk/package.json)。ECR リポジトリの管理に使う。
+  - package-ecosystem: npm
+    directory: /infrastructure/cdk
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    groups:
+      cdk:
+        patterns:
+          - '*'

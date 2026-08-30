@@ -260,12 +260,28 @@ public function test_1(): void
 
 ---
 
-## CI で走らせる (将来追加)
+## CI で走らせる
 
-GitHub Actions で push / PR ごとに `php artisan test` を走らせるなら、
-`.github/workflows/test.yml` を新規作成する。詳細は [`infra/github-actions.md`](./infra/github-actions.md) を参照。
+`.github/workflows/ci.yml` が PR と `main` への push で
+`php artisan test` を走らせる。詳細は [`infra/github-actions.md`](./infra/github-actions.md)。
 
-現状は未実装 (必要になった時点で追加)。
+**CI が見ているのはテストだけではない**:
+
+- **PostgreSQL で `migrate:fresh`** — マイグレーションを SQLite だけで確かめると、
+  識別子の 63 文字上限による «静かな切り詰め → 索引名の衝突» のように
+  PostgreSQL でしか落ちない書き方が緑のまま入る
+- **Vite ビルド** — `@vite()` が manifest を参照するので、テストの前にビルドが要る。
+  管理画面 SPA (React) がビルドを通ること自体もここで見ている
+  - ⚠ `vite build` は **未定義変数を通す**。ビルドが緑でも実機で壊れることがある (CLAUDE.md §11)
+
+### 緑のまま壊れる形に注意する
+
+CLAUDE.md §12 に一覧がある。特に CI と関係が深いのは次の 2 つ。
+
+- **`.env.example` をコピーしているだけ**なので、env に依存する分岐は
+  «空の値のまま一度も評価されず» 緑になる。`config([...])` でテスト内に明示的に入れる
+- **`--filter` で一部だけ回して判断しない**。interface にメソッドを足したときの
+  «匿名クラスのテストダブルの実装漏れ» は、周辺スイートが緑のまま CI だけ落ちる
 
 ---
 

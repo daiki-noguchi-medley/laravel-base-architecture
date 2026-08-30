@@ -26,7 +26,7 @@ jobs:
           fetch-depth: '0'
 
       - name: Bump version and push tag
-        uses: anothrNick/github-tag-action@1.73.0
+        uses: anothrNick/github-tag-action@4ed44965e0db8dab2b466a16da04aec3cc312fd8 # 1.75.0
         id: bump
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -38,7 +38,7 @@ jobs:
       - name: Slack Notification
         # 成功 / 失敗どちらでも通知 (always)
         if: always()
-        uses: rtCamp/action-slack-notify@v2
+        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58 # v2
         env:
           SLACK_COLOR: ${{ job.status == 'success' && '#4834d4' || '#dc3545' }}
           SLACK_TITLE: "[${{ github.repository }}] タグ作成"

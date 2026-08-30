@@ -1,0 +1,169 @@
+# PR の検証。ここが緑にならないと main へ入れない、という土台にする。
+#
+# ⚠ テスト本体は SQLite の in-memory で完結する (src/phpunit.xml が上書きする)。
+#   実 PostgreSQL が要るのは «マイグレーション» だけ。マイグレーションを SQLite だけで
+#   確かめると、識別子の 63 文字上限による «静かな切り詰め → 索引名の衝突» のような、
+#   PostgreSQL でしか落ちない書き方が緑のまま main に入る (CLAUDE.md §12)。
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# 同じ PR に続けて push したとき、古い実行は打ち切る。
+# ⚠ main は打ち切らない。main のコミットごとの結果は «その時点で緑だったか» の記録として
+#   残す必要があり、後段 (タグ付け・イメージのビルド) が同じコミットの結果を見に来る。
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  php:
+    name: PHP テスト
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # Laravel プロジェクトは src/ 配下
+    defaults:
+      run:
+        working-directory: src
+
+    # マイグレーションを本番と同じ RDBMS で流すためだけに使う。
+    # 版は docker/postgres/Dockerfile と揃える (ずれると «CI は通るが本番の版では落ちる» を
+    # 取りこぼす)。
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: laravel
+          POSTGRES_USER: laravel
+          POSTGRES_PASSWORD: secret
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: PHP 8.4 を用意する
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.4'
+          extensions: pdo, pdo_pgsql, pdo_sqlite, mbstring, gd, zip, bcmath, intl, opcache, exif, pcntl
+          coverage: none
+          tools: composer:v2
+
+      - name: Node 20 を用意する
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: src/package-lock.json
+
+      - name: composer の依存をキャッシュする
+        uses: actions/cache@v4
+        with:
+          path: src/vendor
+          key: ${{ runner.os }}-composer-${{ hashFiles('src/composer.lock') }}
+          restore-keys: ${{ runner.os }}-composer-
+
+      # post-autoload-dump で artisan を呼ぶ前に .env が要るので、scripts はあとで実行する。
+      - name: 依存をインストールする
+        run: composer install --no-interaction --prefer-dist --no-progress --no-scripts
+
+      # ⚠ .env.example をそのままコピーするので、env に依存する分岐は «空の値のまま一度も
+      #   評価されず» 緑になる。env で挙動が変わるところは、テストの中で config([...]) に
+      #   明示的に入れてから確かめること (CLAUDE.md §12)。
+      - name: .env とアプリキーを用意する
+        run: |
+          set -euo pipefail
+          cp .env.example .env
+          php artisan key:generate --ansi
+
+      - name: オートロードとパッケージを解決する
+        run: |
+          set -euo pipefail
+          composer dump-autoload --optimize
+          php artisan package:discover --ansi
+
+      - name: npm の依存をインストールする
+        run: npm install --legacy-peer-deps --no-audit --no-fund
+
+      # Blade の @vite() が manifest を参照するので、テストの前にビルドが要る。
+      # 管理画面 SPA (React) がビルドを通ること自体もここで確かめている。
+      # ⚠ vite build は未定義変数を通すので «型・宣言の誤り» はここでは落ちない
+      #   (CLAUDE.md §11)。ビルドが緑でも実機で壊れることがある。
+      - name: フロントをビルドする (Vite の manifest を作る)
+        run: npm run build
+
+      # 本番と同じ RDBMS でマイグレーションが通ることを確かめる。
+      # phpunit.xml が SQLite に差し替えるのはテスト本体だけなので、ここは明示的に pgsql を渡す。
+      - name: マイグレーションが PostgreSQL で通ることを確かめる
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: 5432
+          DB_DATABASE: laravel
+          DB_USERNAME: laravel
+          DB_PASSWORD: secret
+        run: php artisan migrate:fresh --no-interaction --force
+
+      - name: テストを実行する
+        run: php artisan test --colors=always
+
+  workflows:
+    name: ワークフローの検査
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # ⚠ paths で «.github/workflows が変わったときだけ» に絞らない。絞ると required check に
+    #   したとき走らない実行が pending のまま残るうえ、action の固定漏れのように «触っていない
+    #   のに外部の事情で危なくなる» ものを拾えない。どちらの検査も数秒で終わる。
+    # ⚠ どちらも docker image を digest で固定する。Dependabot が追うのは `uses:` の action
+    #   だけで、run の中の image は対象外。更新するときは上流の tags を見て
+    #   «バージョン番号のコメントと digest» を対で差し替える。
+    steps:
+      # ⚠ persist-credentials: false。下の 2 つは $PWD をコンテナへ丸ごと渡すため、付けないと
+      #   .git/config に残る GITHUB_TOKEN も一緒に入る。どちらも git 認証は使わない
+      #   (zizmor へは -e GH_TOKEN で明示的に渡す)。
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      # 構文・`${{ }}` の型・非推奨のワークフローコマンド (set-output 等)・run の shell
+      # (image に shellcheck が同梱されている) を見る。
+      - name: 構文と式を検査する (actionlint)
+        env:
+          # rhysd/actionlint:1.7.12 (shellcheck 同梱)
+          IMAGE: rhysd/actionlint@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667
+        run: |
+          set -euo pipefail
+          docker run --rm -v "$PWD":/repo -w /repo "$IMAGE" -no-color -oneline
+
+      # action の固定漏れ・式の埋め込みによるコード注入・過剰な permissions を見る。
+      # ⚠ 検出は medium まで «出す»、赤にするのは high だけ。medium 以下には «意図してそうして
+      #   いる» ものが多く、全部を赤にすると ignore を書くための ignore が増えて検査が形骸化する。
+      #   ただし出さないと «そこに何があるか» を誰も知らないままになる。
+      # ⚠ --offline を付けない。オンラインだと «既知の脆弱性がある版の action» を
+      #   GitHub の advisory と突き合わせられる (この検査を入れた動機のひとつ)。
+      - name: セキュリティを監査する (zizmor)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # ghcr.io/zizmorcore/zizmor:v1.29.0
+          IMAGE: ghcr.io/zizmorcore/zizmor@sha256:863026d54f91271b10b60b67ad8054cb37120167e162482597db102b3026a284
+        run: |
+          set -euo pipefail
+          echo "───── 参考 (medium 以上。ここでは赤にしない) ─────"
+          docker run --rm -e GH_TOKEN -v "$PWD":/repo -w /repo "$IMAGE" \
+            --format plain --min-severity medium .github/workflows || true
+
+          echo "───── ここから下が判定 (high のみ。出たら赤) ─────"
+          docker run --rm -e GH_TOKEN -v "$PWD":/repo -w /repo "$IMAGE" \
+            --format plain --min-severity high .github/workflows

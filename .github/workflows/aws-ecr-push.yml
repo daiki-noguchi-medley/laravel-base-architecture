@@ -42,23 +42,36 @@ jobs:
         uses: actions/checkout@v4
         # ref を省略すると github.ref (= 起動時に選ばれた branch / tag) が使われる
 
+      # ⚠ 式は env へ受けてから使う。run の中へ直接展開すると、ref 名のように
+      #   «こちらが決めていない文字列» がそのままシェルのコードとして解釈され得る
+      #   (ブランチ名に $(...) を仕込める)。以降の run も同じ形にそろえる。
       - name: ビルド対象を表示
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          COMMIT_SHA: ${{ github.sha }}
         run: |
-          echo "ref_type: ${{ github.ref_type }}"
-          echo "ref_name: ${{ github.ref_name }}"
-          echo "sha:      ${{ github.sha }}"
+          set -euo pipefail
+          echo "ref_type: ${REF_TYPE}"
+          echo "ref_name: ${REF_NAME}"
+          echo "sha:      ${COMMIT_SHA}"
 
       - name: ECR tag を決定
         id: tag
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          COMMIT_SHA: ${{ github.sha }}
         run: |
-          if [ "${{ github.ref_type }}" = "tag" ]; then
-            ECR_TAG="${{ github.ref_name }}"
+          set -euo pipefail
+          if [ "${REF_TYPE}" = "tag" ]; then
+            ECR_TAG="${REF_NAME}"
             echo "==> tag からの起動なのでそのまま使用: $ECR_TAG"
           else
             # ブランチからの起動 → <branch>-<short-sha>
-            SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+            SHORT_SHA=$(printf '%s' "${COMMIT_SHA}" | cut -c1-7)
             # ref_name をファイル名安全に正規化 (/ や _ を - に)
-            SAFE_REF=$(echo "${{ github.ref_name }}" | tr '/_' '--')
+            SAFE_REF=$(printf '%s' "${REF_NAME}" | tr '/_' '--')
             ECR_TAG="${SAFE_REF}-${SHORT_SHA}"
             echo "==> ブランチ + short-sha で自動生成: $ECR_TAG"
           fi
@@ -99,14 +112,25 @@ jobs:
           # provenance を付けて image 履歴を残す
           provenance: true
 
+      # ⚠ 式は env へ受けてから使う。run の中へ直接展開すると、外から書ける値
+      #   （ref 名など）がそのままシェルのコードとして解釈され得る。
       - name: 完了サマリ
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          COMMIT_SHA: ${{ github.sha }}
+          ECR_TAG: ${{ steps.tag.outputs.ecr_tag }}
+          IMAGE_URI: ${{ steps.ecr-uri.outputs.image_uri }}
         run: |
-          echo "### ECR push 完了" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "| 項目 | 値 |" >> "$GITHUB_STEP_SUMMARY"
-          echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
-          echo "| ref type | \`${{ github.ref_type }}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| ref name | \`${{ github.ref_name }}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| commit | \`${{ github.sha }}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| ECR tag | \`${{ steps.tag.outputs.ecr_tag }}\` |" >> "$GITHUB_STEP_SUMMARY"
-          echo "| image URI | \`${{ steps.ecr-uri.outputs.image_uri }}\` |" >> "$GITHUB_STEP_SUMMARY"
+          set -euo pipefail
+          {
+            echo "### ECR push 完了"
+            echo ""
+            echo "| 項目 | 値 |"
+            echo "|---|---|"
+            echo "| ref type | \`${REF_TYPE}\` |"
+            echo "| ref name | \`${REF_NAME}\` |"
+            echo "| commit | \`${COMMIT_SHA}\` |"
+            echo "| ECR tag | \`${ECR_TAG}\` |"
+            echo "| image URI | \`${IMAGE_URI}\` |"
+          } >> "$GITHUB_STEP_SUMMARY"

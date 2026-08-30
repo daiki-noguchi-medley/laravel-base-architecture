@@ -1,6 +1,6 @@
 # Laravel Docker 環境
 
-[![Test](https://github.com/daiki-noguchi-medley/laravel-base-architecture/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/daiki-noguchi-medley/laravel-base-architecture/actions/workflows/test.yml)
+[![CI](https://github.com/daiki-noguchi-medley/laravel-base-architecture/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/daiki-noguchi-medley/laravel-base-architecture/actions/workflows/ci.yml)
 ![Laravel](https://img.shields.io/badge/Laravel-13-FF2D20?logo=laravel&logoColor=white)
 ![PHP](https://img.shields.io/badge/PHP-8.4-777BB4?logo=php&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)

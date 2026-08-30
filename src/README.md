@@ -46,10 +46,14 @@ src/
 │   │   ├── Admin/Admin.php                 ドメインサブフォルダ必須、直置き禁止)
 │   │   └── Kanban/KanbanCard.php
 │   ├── Enum/
-│   │   └── Kanban/KanbanLane.php
+│   │   └── Kanban/KanbanLane.php          (ケース名は PascalCase、値は DB 格納文字列)
+│   ├── Support/                           横断インフラ (Repository でも Service でもない共通基盤)
+│   │   └── Transaction/
+│   │       ├── Transaction.php            interface。Service が依存するトランザクション境界
+│   │       └── DatabaseTransaction.php    DB::transaction() へ委譲する実装
 │   └── Providers/
 │       ├── AppServiceProvider.php         boot 専用 (Auth::provider() 登録。bind は書かない)
-│       ├── RepositoryServiceProvider.php  Repository interface→Impl の DI バインド
+│       ├── RepositoryServiceProvider.php  Repository interface→Impl + 横断インフラの DI バインド
 │       └── ServiceServiceProvider.php     Service interface→Impl の DI バインド
 ├── Demo/                                  事業ドメインパッケージ (CLAUDE.md §4)
 │   ├── User/                              ← ドメイン先頭、その下にレイヤー
@@ -69,6 +73,7 @@ src/
 │           └── AdminRepositoryImpl.php
 ├── bootstrap/app.php                      redirectGuestsTo / redirectUsersTo を guard 別に分岐
 ├── config/auth.php                        guards (user/admin) + providers (userauth/adminauth)
+├── lang/ja/validation.php                 検証エラーの日本語文言 (Laravel 11+ は同梱されない)
 ├── database/
 │   ├── migrations/
 │   │   ├── 2026_05_24_154404_create_user_table.php

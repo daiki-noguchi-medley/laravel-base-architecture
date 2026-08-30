@@ -218,11 +218,38 @@ docker compose exec app tail -f storage/logs/laravel.log
 
 ---
 
+## 外部へ出る処理は Schedule::command に書かない
+
+`batch` と `job` は **別のコンテナ**として動く。本番のネットワーク制御 (セキュリティグループ等) は
+**コンテナ単位**で付くので、**「app からは繋がるのに batch からは繋がらない」が普通に起きる**。
+
+外部システム (社内の別 DB / 取引先 API) へ出る定期処理は **キュージョブへ寄せ**、
+Console Command は「ジョブを投げる」で終わらせる。到達性をアプリ本体と同じ経路に揃えるため。
+
+- ⚠ **症状が「無言」になりやすい。** 到達できないだけなので例外ではなく «該当 0 件» として流れ、
+  warning しか残らない。**「手動だと動くのに定期実行だとスルーされる」の正体はたいていこれ**
+  (手動実行は batch コンテナを経由しない)
+- ⚠ **判定は発火から辿れる範囲すべてで見る。** Command が直接外部を触っていなくても、
+  呼んだ Service の先の Repository が外部へ出ていれば同じ問題になる
+- ⚠ 例外を作るなら **理由を `src/routes/console.php` に書く**
+
+**外部へ出ない定期実行は Command に実処理を書いてよい。**
+自DB・自分のストレージだけを触るもの、外部からデータを回収してくるだけのものは、
+発火と実行を分けてもログと再試行の経路が増えるだけで得るものが無い。
+分岐の基準は「**外部へ出るか**」だけで、「定期実行だから」ではない。
+
+---
+
 ## ハマりどころ
 
 | 症状 | 原因 | 対処 |
 |---|---|---|
 | schedule が発火しない | cron daemon が止まっている | `docker compose exec batch supervisorctl status` で `cron RUNNING` 確認 |
+| **手動実行だと動くのに、定期実行だと «該当なし» で終わる** | batch コンテナから外部へ到達できていない (例外ではなく 0 件として流れる) | 外部へ出る処理はキュージョブへ寄せる (上記) |
+| **コマンドの出力も、その中で残した Log も、どこにも残らない** | `schedule:run` が子プロセスの出力を自分のパイプへ受けるため | このリポジトリは cron が `scheduler-cron.log` に受けて `tail -F` で stdout に流す構成。**この経路を変えるときは実機で «本当にコンテナのログまで届くか» を確認する** |
+| 上を `appendOutputTo('/dev/stdout')` で直そうとしたが変わらない | それはスケジューラのパイプを指すだけで、コンテナの標準出力ではない | 出力の中継の仕組みを変えない (上記) |
+| ジョブへ寄せたのに重複実行される | `withoutOverlapping()` は **ジョブを投げるところ** にしか効かない | 重ならないことはジョブ側のロック (`Cache::lock`) が担う。[`queue.md`](./queue.md) 参照 |
+| 発火しているのに何も起きない | `dispatch` の失敗を握り潰している | 投げられないのはキューの保管先 (自DB) に触れていないということ。ログを残して `FAILURE` を返す |
 | schedule:run の出力が `docker compose logs batch` に出ない | crontab が `/proc/1/fd/1` に書き込み失敗 (www-data から書けない) | 出力先を `storage/logs/scheduler-cron.log` にして `tail -F` で stdout に流す (現状すでに対応) |
 | タイムゾーンがずれて時刻が UTC | `config/app.php` の `timezone` が UTC ハードコード | `env('APP_TIMEZONE', 'UTC')` に修正 + `.env` で `APP_TIMEZONE=Asia/Tokyo` (現状すでに対応) |
 | 前の実行が長くて重複起動する | `withoutOverlapping()` をつけていない | `->withoutOverlapping(10)` を追加 |

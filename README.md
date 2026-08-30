@@ -89,9 +89,13 @@ bind mount する `supervisord-*.conf` だけが違う。
 ├── README.md                     ← この文書 (インフラ / セットアップ / 運用)
 ├── CLAUDE.md                     ← コーディング規約 (Laravel / PHP)
 ├── .claude/
-│   └── agents/
-│       ├── laravel-code-reviewer.md         規約チェック用サブエージェント (PHP 命名/レイヤー/Repository 等)
-│       └── laravel-migration-pr-checker.md  マイグレーション PR の本文記載 (SQL/EXPLAIN/down/影響) チェック
+│   ├── agents/                   確認専用サブエージェント 5 体 (下の「コーディング規約」参照)
+│   └── skills/review-pr/         変更ファイルの種別で体を振り分け、指摘を PR の inline comment にする
+├── .github/
+│   ├── workflows/                CI / PR レビュー / タグ付け / ECR push
+│   ├── actionlint.yaml           ワークフロー構文検査の設定 (見逃す指摘には理由を添える)
+│   ├── zizmor.yml                action の固定方針 (公式は tag、それ以外は SHA)
+│   └── dependabot.yml            SHA 固定のまま更新 PR を出す (github-actions / composer / npm)
 ├── docker/
 │   ├── nginx/
 │   │   ├── Dockerfile
@@ -119,7 +123,9 @@ bind mount する `supervisord-*.conf` だけが違う。
     │   ├── Jobs/                 Job クラス (Laravel 標準位置)
     │   ├── Console/Commands/     artisan コマンド
     │   ├── Enum/<ドメイン>/
+    │   ├── Support/<領域>/       横断インフラ (Transaction = トランザクション境界の抽象)
     │   └── Constants/
+    ├── lang/ja/                  検証エラーの日本語文言 (Laravel 11+ は同梱されない)
     └── Demo/                     ← 事業ドメインパッケージ (app/ と並列、ドメイン先頭)
         ├── User/{Service, Repository}/      各レイヤーに interface + Impl
         ├── Admin/{Service, Repository}/
@@ -441,7 +447,7 @@ docker compose logs -f db     # PostgreSQL の query / connection log
 |---|---|
 | [`README.md`](README.md) | この文書 (インフラ / セットアップ / 運用) |
 | [`src/README.md`](src/README.md) | Laravel アプリ構造 + 認証フローの解説 |
-| [`CLAUDE.md`](CLAUDE.md) | コーディング規約 (§1〜§8、AI agent 用にも) |
+| [`CLAUDE.md`](CLAUDE.md) | コーディング規約 (§1〜§13、AI agent 用にも) |
 | [`docs/infra/github-actions.md`](docs/infra/github-actions.md) | GitHub Actions の workflow 解説 + Mermaid シーケンス図 + Secrets / トラブルシューティング |
 | [`docs/testing.md`](docs/testing.md) | テスト規約 + 実行方法 + レイヤー別戦略 (Repository / Service / Controller / VO / Job) |
 | [`docs/htmx-alpine.md`](docs/htmx-alpine.md) | htmx + Alpine.js のクイックリファレンス + 組み合わせパターン + 実例 + ハマりどころ |
@@ -465,22 +471,40 @@ docker compose logs -f db     # PostgreSQL の query / connection log
 
 | § | 内容 |
 |---|---|
-| 1 | 定数 / Enum (大文字スネークケース) |
-| 2 | DB テーブル名 (単数形 `user` / `tag`) |
+| 1 | 定数 / Enum — 定数は大文字スネーク、**enum のケース名はパスカルケース**。置き場 (Model と同居させない) と、値を勝手に変えない理由 |
+| 2 | DB テーブル名 (単数形 `user` / `tag`) + 列の日本語コメント |
 | 3 | 変数・関数命名 (`~List` サフィックス、略語禁止、命名から処理が予測可能) |
-| 4 | レイヤー構造 (Controller → Service → Repository、ドメイン先頭) + Model (`app/Model/<ドメイン>/`) + interface PHPDoc 規約 |
+| 4 | レイヤー構造 (Controller → Service → Repository、ドメイン先頭) + Model + **トランザクション境界 (`Transaction`)** + interface PHPDoc 規約 |
 | 5 | 制御フロー (早期 return / match) |
-| 6 | その他 (`declare(strict_types=1)` / `final` / `Carbon::now()`) |
-| 7 | Job / Batch / Schedule (Supervisor 経由運用) |
-| 8 | HTTP 層 (Request / Resource) — フィールド定数化、`Arrayable` 直 implements、Controller は薄く |
-| 9 | PR 規約 (マイグレーション編) — マイグレーション差分のある PR は本文に SQL / EXPLAIN / down() / 既存データ影響を必ず記載 |
+| 6 | その他 (`declare(strict_types=1)` / `final` / `Carbon::now()`) + 外部の指定は出所を引用で残す + 「後で気づけない失敗」を作らない |
+| 7 | Job / Batch / Schedule — 外部へ出る処理はキューへ寄せる / ジョブの重なり・打ち切り・可観測性 / 発火側で出力を捨てない |
+| 8 | HTTP 層 (Request / Resource) — 検証は必ず FormRequest、フィールド定数化、`lang/ja` も対で見る |
+| 9 | PR 規約 (マイグレーション編) — 実行時クエリと EXPLAIN 全文。DDL 全文は貼らない |
+| 10 | 外部システム由来の名前 — 改名できない語彙に、意味をコードで残す |
+| 11 | フロントエンド (`src/resources/js/`) |
+| 12 | テストの作法 — 「緑のまま壊れる」形を作らない |
+| 13 | 外部に出す文章での書き方 (PR / コミット / issue) |
 
-`.claude/agents/` 配下に **2 つの確認専用サブエージェント** を置いています。
+`.claude/agents/` 配下に **5 つの確認専用サブエージェント** を置いています。
+担当は重ならないように分けてあり、`.claude/skills/review-pr/` が変更ファイルの種別で振り分けます。
 
-| エージェント | 役割 | 起動キーワード例 |
-|---|---|---|
-| [`laravel-code-reviewer`](.claude/agents/laravel-code-reviewer.md) | PHP コードの規約違反 (命名 / レイヤー / Repository 必須 / クエリビルダー基本) を検出 | 「規約レビュー」「laravel-review」 |
-| [`laravel-migration-pr-checker`](.claude/agents/laravel-migration-pr-checker.md) | マイグレーション追加 PR で本文に SQL / EXPLAIN / down() / 影響が書かれているかを検証 (CLAUDE.md §9 準拠) | 「マイグレーション PR レビュー」「migration-pr-check」 |
+| エージェント | 役割 |
+|---|---|
+| [`laravel-code-reviewer`](.claude/agents/laravel-code-reviewer.md) | `src/app/` / `src/Demo/` の PHP と `src/resources/views/` の Blade。命名 / レイヤー / 型付きクラス / enum / FormRequest / エスケープ |
+| [`laravel-migration-pr-checker`](.claude/agents/laravel-migration-pr-checker.md) | マイグレーション差分のある PR の本文 (CLAUDE.md §9 準拠) |
+| [`frontend-reviewer`](.claude/agents/frontend-reviewer.md) | `src/resources/js/` (React SPA / htmx + Alpine)。hooks 規則・key・副作用のクリーンアップとコード衛生 |
+| [`github-actions-reviewer`](.claude/agents/github-actions-reviewer.md) | `.github/` と `.claude/`。起動条件と権限・失敗の握り潰し・固定と更新 |
+| [`security-ops-reviewer`](.claude/agents/security-ops-reviewer.md) | 秘密情報・セッションと Cookie・外部連携・ジョブの運用・トランザクションの完全性 |
 
-PR を立てる前に **両方とも一度走らせる** ことを推奨しています。
-Claude Code を使っているなら、コードを書いた後 / PR を作る前に「規約レビューして」と頼めばそれぞれが起動します。
+手元では `/review-pr <PR URL>` で同じ振り分けを呼べます。
+CI では `ANTHROPIC_API_KEY` を登録してあれば
+[`.github/workflows/claude-code-review.yml`](.github/workflows/claude-code-review.yml) が
+PR を開いたとき / `@claude` と書いたときに自動で走ります (未登録なら notice を出して緑で終わります)。
+
+```bash
+gh secret set ANTHROPIC_API_KEY
+```
+
+⚠ **`.claude/` を変更する PR では、その変更はまだ効きません。**
+CI は実行前に `.claude/` を base (main) の内容へ戻します (PR HEAD が信頼できない入力のため)。
+新しく足した体はマージ後から動くので、その PR では人が読んでください。

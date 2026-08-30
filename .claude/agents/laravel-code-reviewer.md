@@ -135,7 +135,7 @@ enum は「取り得る値の集合」、Model は「1 件のデータ」。置�
   無いと Laravel 同梱の英語がそのまま利用者に出る。
   新しい欄を足したら `attributes` にも登録されているか (無いとキー名が英語のまま差し込まれる)
 
-### 8. Blade (CLAUDE.md §4 / §11)
+### 8. Blade (CLAUDE.md §8)
 
 対象は `src/resources/views/`。
 

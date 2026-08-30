@@ -40,10 +40,27 @@ final class DashboardTest extends TestCase
         $row = app(AdminRepository::class)->findById($id);
         $this->assertNotNull($row);
 
+        // ⚠ シェルが表示されることだけを見ない。SPA は window.__adminUser を読んで
+        //   ヘッダーの表示や API 呼び出しを決めるので、注入が落ちると «画面は出るが
+        //   誰としてログインしているか分からない» 状態になる。
+        //   AdminAppViewModel での詰め替えが壊れたらここが赤くなる。
         $this->actingAs(new AdminAuth($row), 'admin')
             ->get('/admin')
             ->assertOk()
-            ->assertSee('id="admin-app"', false);
+            ->assertSee('id="admin-app"', false)
+            ->assertSee('window.__adminUser', false)
+            ->assertSee('"Root"', false)
+            ->assertSee('"root@example.com"', false);
+    }
+
+    public function test_login_page_does_not_inject_admin_user(): void
+    {
+        // 未認証のシェル (ログイン画面) には管理者情報を載せない。
+        // 載ると、ログアウト後に «戻る» で誰かの情報が残っている状態になり得る。
+        $this->get('/admin/login')
+            ->assertOk()
+            ->assertSee('id="admin-app"', false)
+            ->assertDontSee('window.__adminUser', false);
     }
 
     public function test_logout_redirects_to_admin_login(): void

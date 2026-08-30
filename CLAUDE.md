@@ -26,9 +26,9 @@
 
 | 種類 | 配置 | 例 |
 |---|---|---|
-| ドメインの区分値 (DB に入る値・状態) | `app/Enum/<ドメイン>/` | `App\Enum\Kanban\KanbanLane` |
-| ユースケースの結果 (`~Outcome`) | `Demo/<ドメイン>/Service/` | `Demo\User\Service\LoginOutcome` |
-| ドメイン横断の定数 | `app/Constants/` | `App\Constants\Limit` |
+| ドメインの区分値 (DB に入る値・状態) | `app/Enum/<ドメイン>/` | `App\Enum\Kanban\KanbanLane` (実在) |
+| ユースケースの結果 (`~Outcome`) | `Demo/<ドメイン>/Service/` | `Demo\User\Service\LoginOutcome` (このひな型にはまだ無い) |
+| ドメイン横断の定数 | `app/Constants/` | `App\Constants\Limit` (このひな型にはまだ無い) |
 
 - **enum を `app/Model/` に置かない。** Model は「1 件のデータ」を表す入れ物、enum は
   「取り得る値の集合」。同居させると、ドメインのフォルダを開いたときに
@@ -590,6 +590,8 @@ Service からはこれらの Facade を直接呼ばない。**すべて Reposit
 
 - Repository でも Service でもない **横断インフラ** だが、永続化に近い共通基盤なので
   DI バインドは **`RepositoryServiceProvider`** に書く
+- ⚠ **このひな型にはまだ「複数 Repository をまたぐ書き込み」が無いので、バインドだけ置いてある。**
+  使う場面が出たときに下の形で注入する (先に使用例を作らない。YAGNI)
 - 横断インフラの実装クラスは `~Impl` ではなく **「実装が何であるか」を名前で示す**
   (`DatabaseTransaction`)。Repository / Service と違って
   «同じ interface に別種の実装が並ぶ» ことが前提のため

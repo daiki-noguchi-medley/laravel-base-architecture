@@ -16,16 +16,16 @@
     <div id="admin-app"></div>
 
     {{-- 認証済みなら admin 情報を React に注入 --}}
-    @auth('admin')
-        @php($admin = auth('admin')->user())
+    {{-- ⚠ view から auth() を引かない。詰め替えは Controller (AdminAppViewModel) が行う --}}
+    @if ($vm->isAuthenticated())
         <script>
             window.__adminUser = {
-                id: {{ $admin->id() }},
-                name: @json($admin->name()),
-                email: @json($admin->email())
+                id: {{ $vm->adminId }},
+                name: @json($vm->adminName),
+                email: @json($vm->adminEmail)
             };
         </script>
-    @endauth
+    @endif
 
     {{-- FormRequest のバリデーションエラーを React に注入 --}}
     @if ($errors->any())

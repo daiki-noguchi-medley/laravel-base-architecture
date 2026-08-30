@@ -14,7 +14,7 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('user', function (Blueprint $table) {
-            $table->softDeletes();
+            $table->softDeletes()->comment('論理削除した日時 (NULL = 有効)');
         });
     }
 

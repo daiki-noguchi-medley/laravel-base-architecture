@@ -6,6 +6,7 @@ namespace App\Http\Controller\Admin\Auth;
 
 use App\Http\Controller\Controller;
 use App\Http\Request\Admin\Auth\LoginRequest;
+use App\Http\ViewModel\Admin\AdminAppViewModel;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -15,8 +16,11 @@ final class LoginController extends Controller
 {
     public function showLoginForm(): View
     {
-        // React SPA のマウントポイント (admin.app blade を返す)
-        return view('admin.app');
+        // React SPA のマウントポイント (admin.app blade を返す)。
+        // guest:admin 配下なので未認証で確定 (管理者の情報は SPA へ渡さない)。
+        return view('admin.app', [
+            'vm' => AdminAppViewModel::guest(),
+        ]);
     }
 
     public function login(LoginRequest $request): RedirectResponse

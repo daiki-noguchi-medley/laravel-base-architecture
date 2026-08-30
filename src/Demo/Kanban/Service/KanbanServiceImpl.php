@@ -23,13 +23,13 @@ final class KanbanServiceImpl implements KanbanService
     public function createCard(int $userId, string $title, string $body): KanbanCard
     {
         // 新規カードは TODO レーンの末尾に積む。
-        $position = $this->kanbanCardRepository->maxPositionOfLane($userId, KanbanLane::TODO) + 1;
+        $position = $this->kanbanCardRepository->maxPositionOfLane($userId, KanbanLane::Todo) + 1;
 
         $cardId = $this->kanbanCardRepository->insert(
             userId: $userId,
             title: $title,
             body: $body,
-            lane: KanbanLane::TODO,
+            lane: KanbanLane::Todo,
             position: $position,
         );
 

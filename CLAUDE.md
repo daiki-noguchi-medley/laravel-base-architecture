@@ -12,8 +12,51 @@
 
 ### 命名
 
-- case 名 / 定数名は **大文字スネークケース** (`SAMPLE_VALUE`)
-- backed enum の値はドメインで意味のある小文字スネークケース
+- **定数名** は 大文字スネークケース (`MAX_RETRY_COUNT`)
+- **enum のケース名** は **パスカルケース** (`UserStatus::Active`)。
+  PER Coding Style 2.0 が enum case を PascalCase と定めており、PHP / Laravel の標準系もこれに揃う
+- **backed enum の値** はドメインで意味のある小文字スネークケース (`'active'`)
+
+> ⚠️ **ケース名と値は別物として扱う。**
+> ケース名 (PHP 識別子) の変更は安全だが、**値は DB の既存行・CHECK 制約・外部との契約
+> (ジョブのイベント名、外部サービスのステージ名など) がそのまま参照している**。
+> 「表記を揃えたいから」で値を書き換えない。**値の変更はデータ移行と対でしか行わない。**
+
+### 置き場 (Model と同居させない)
+
+| 種類 | 配置 | 例 |
+|---|---|---|
+| ドメインの区分値 (DB に入る値・状態) | `app/Enum/<ドメイン>/` | `App\Enum\Kanban\KanbanLane` |
+| ユースケースの結果 (`~Outcome`) | `Demo/<ドメイン>/Service/` | `Demo\User\Service\LoginOutcome` |
+| ドメイン横断の定数 | `app/Constants/` | `App\Constants\Limit` |
+
+- **enum を `app/Model/` に置かない。** Model は「1 件のデータ」を表す入れ物、enum は
+  「取り得る値の集合」。同居させると、ドメインのフォルダを開いたときに
+  «その業務にどんなデータがあるか» が読み取れなくなる
+- **例外は `~Outcome` だけ。** ユースケースの結果を表す enum は結果オブジェクトと対で
+  1 つの戻り値を成すので、Service の隣に置く (§4 「データクラスの種別」参照)。
+  backed か否かは区別にならない (`SystemSettingOutcome: string` のような backed な結果 enum もある)
+- **レイヤーディレクトリ直下に直置きしない** (`app/Enum/UserStatus.php` は違反)。必ず `<ドメイン>` サブフォルダを切る
+
+> ⚠️ **enum を移動した差分では «`use` 無しの同一 namespace 参照» を必ず洗う。**
+> 移動前は同じ namespace だったため `use` を書いていないファイルがあると、
+> テキスト上はマージが通るのに実行時に `Class "..." not found` で落ちる。
+> 移動した enum の短縮名を使っているファイルを全 PHP から抽出し、
+> `use` も同一 namespace も無いものが 0 件であることを確認する。
+
+### その値に付随する知識は enum に持たせる
+
+表示名・並び順・対応するファイル名など「その値だけが知っていること」は enum のメソッドにする。
+Service / Model / Blade の `match` や配列に散らさない。
+
+### 外部システムと共有する値は先方の表記のまま持つ
+
+値そのものが外部との契約になっているもの (Webhook のイベント種別、外部ワークフローの
+ステージ名など、**こちらが表現を決められないもの**) は、自分たちの表記に揃えず
+**先方の表記のまま** 持つ。変換を挟むと、先方の資料やログと突き合わせるたびに
+「どちらの表記か」を考えることになる。
+**この例外に当たる enum は、その理由をクラスの docblock に書く**
+(書いていないと、後から «規約違反» として直されてしまう)。ケース名は例外なくパスカルケース。
 
 ### 例
 
@@ -21,17 +64,27 @@
 // app/Enum/User/UserStatus.php
 enum UserStatus: string
 {
-    case ACTIVE  = 'active';
-    case PENDING = 'pending';
-    case DELETED = 'deleted';
+    case Active  = 'active';
+    case Pending = 'pending';
+    case Deleted = 'deleted';
+
+    /** 画面表示用のラベル (その値に付随する知識は enum が持つ)。 */
+    public function label(): string
+    {
+        return match ($this) {
+            self::Active  => '有効',
+            self::Pending => '承認待ち',
+            self::Deleted => '削除済み',
+        };
+    }
 }
 
 // app/Constants/Limit.php
 final class Limit
 {
-    public const MAX_RETRY_COUNT   = 5;
-    public const DEFAULT_PAGE_SIZE = 20;
-    public const DIAL_TIMEOUT_SEC  = 3;
+    public const int MAX_RETRY_COUNT   = 5;
+    public const int DEFAULT_PAGE_SIZE = 20;
+    public const int DIAL_TIMEOUT_SEC  = 3;
 }
 ```
 
@@ -42,14 +95,21 @@ final class Limit
 if ($user->getStatus() === 'active') { ... }
 sleep(3);
 $retries = 5;
+
+// NG: ケース名が大文字スネーク (PER Coding Style 2.0 は PascalCase)
+case ACTIVE = 'active';
+
+// NG: 表示名を enum の外の match / 配列で持つ
+$label = ['active' => '有効', 'pending' => '承認待ち'][$user->getStatus()->value];
 ```
 
 ### 良い例
 
 ```php
-if ($user->getStatus() === UserStatus::ACTIVE) { ... }
+if ($user->getStatus() === UserStatus::Active) { ... }
 sleep(Limit::DIAL_TIMEOUT_SEC);
 $retries = Limit::MAX_RETRY_COUNT;
+$label   = $user->getStatus()->label();
 ```
 
 ---
@@ -83,6 +143,33 @@ Schema::create('user', function (Blueprint $table) {
 
 > Laravel デフォルト生成の `users` / `cache` / `jobs` テーブル等は標準ひな型なので
 > そのままでよい。新規に作るテーブルは単数形で統一する。
+
+### 列には日本語コメントを付ける
+
+`$table->string('status')->comment('申込の状態。App\\Enum\\... の値が入る');` のように、
+**マイグレーションの時点で列の意味を DB に残す**。
+`\d+ <table>` や DB クライアントから見たときに意味が読めるのが目的で、
+「テーブル定義書」という別の資料を作らなくて済む。
+
+外部システムのキーを自DBに持つ場合 (`custid` のような、こちらで名前を決められない識別子) は、
+**「どの外部システムの何か」を必ず列コメントに書く** (§10 参照)。
+
+### 状態を表すテーブルは「行が作られる条件」をクラスコメントに書く
+
+`deleted_at` のようなフラグ列ではなく **「行の有無 = その状態」** を別テーブルで表す設計
+(`user_active` / `user_application_active` など) を採る場合、
+**形式は共通でも «どういう条件で行が作られるか» はテーブルごとに違う**。
+マイグレーションのクラスコメントに **行が作られる条件を 1 行** 書く。
+
+```php
+/**
+ * user_active: 行の有無 = そのユーザーが有効。
+ * 行が作られるのは «初回ログインの本人確認に成功したとき»。
+ */
+return new class extends Migration { ... };
+```
+
+書いていないと、フラグ列と違って「どの操作で立つのか」がコードを全部追わないと分からなくなる。
 
 ---
 
@@ -489,6 +576,50 @@ DB 通信と外部 API 通信は **必ず Repository を経由する**。
 | キャッシュ | `Cache::store(...)->...` |
 
 Service からはこれらの Facade を直接呼ばない。**すべて Repository に閉じる**。
+
+### トランザクション境界は `Transaction` 経由で張る
+
+「Service は `DB::` を直接呼ばない」を守ると、**複数 Repository の書き込みを 1 つの
+トランザクションで束ねる手段が無くなる**。ここだけ `DB::transaction()` を書いてよい、
+とすると鉄則が崩れるので、境界そのものを interface にして注入する。
+
+| 種類 | 配置 | 役割 |
+|---|---|---|
+| interface | `app/Support/Transaction/Transaction.php` | Service が依存する抽象 |
+| 実装 | `app/Support/Transaction/DatabaseTransaction.php` | `DB::transaction()` へ委譲 |
+
+- Repository でも Service でもない **横断インフラ** だが、永続化に近い共通基盤なので
+  DI バインドは **`RepositoryServiceProvider`** に書く
+- 横断インフラの実装クラスは `~Impl` ではなく **「実装が何であるか」を名前で示す**
+  (`DatabaseTransaction`)。Repository / Service と違って
+  «同じ interface に別種の実装が並ぶ» ことが前提のため
+
+```php
+// Demo/Order/Service/OrderServiceImpl.php
+public function __construct(
+    private readonly Transaction $transaction,
+    private readonly OrderRepository $orderRepository,
+    private readonly StockRepository $stockRepository,
+) {}
+
+public function placeOrder(int $userId, int $itemId): Order
+{
+    return $this->transaction->run(function () use ($userId, $itemId): Order {
+        $orderId = $this->orderRepository->insert($userId, $itemId);
+        $this->stockRepository->decrement($itemId);
+
+        return $this->orderRepository->findById($orderId);
+    });
+}
+```
+
+> ⚠️ **クロージャの中で早期 `return` して «途中まで» で抜けない。**
+> 巻き戻すのは例外だけなので、`return` した時点でそこまでの書き込みが確定する。
+> 複数件を書く処理は «全部の検証 → 全部の書き込み» の順にする (§6)。
+
+> ⚠️ **中で握り潰した SQL エラーは COMMIT を無言の ROLLBACK に変える (PostgreSQL)。**
+> トランザクション中に 1 つでも SQL エラーが起きると以降の文がすべて失敗するため、
+> `catch` してログだけ残すと「成功ログが出ているのに 1 行も書かれていない」になる。
 
 ### DB Repository はクエリビルダー基本
 
@@ -997,6 +1128,37 @@ return match ($user->getStatus()) {
     `'timezone' => env('APP_TIMEZONE', 'UTC')` に修正済み。
     新規 `composer create-project` をやり直したときは再度修正が必要
 
+### 外部の指定 (デザイン / 要件 / 法務) を根拠に書くときは、出所を引用で残す
+
+「デザイン指定」「要件どおり」とだけ書かない。**資料名と、そこから読み取れる該当箇所**
+(プロトタイプのコード片・ドキュメントのページ名・issue のコメント) を添える。
+
+```php
+// NG
+// デザイン指定によりステップ 2 へ戻す
+// OK
+// 受領プロトタイプ (register/step1.html の <a href="./step1.html">) が step1 を指定しているため
+```
+
+⚠ 出所を書かないと、あとから誰も裏を取れず、**自分の判断が「指定」として独り歩きする**。
+実際に「行き先はステップ 2 (デザイン指定)」と書かれていたものが、どの資料にも無い
+自己判断だった、という事故がある。
+
+### 「後で気づけない失敗」を作らない
+
+このリポジトリで繰り返し踏むのは、**壊れているのに緑のまま通る**形。書くときに次を疑う。
+
+- **握り潰した例外** — `catch` して警告ログだけ残し、呼び出し元には «成功» を返していないか。
+  特に **PostgreSQL は、トランザクション中に 1 つでも SQL エラーが起きるとその後の文がすべて
+  失敗し、`COMMIT` が黙って `ROLLBACK` になる**。例外を握り潰すと
+  「成功ログが残っているのに 1 行も書かれていない」が起きる (SQLite では再現しないので、
+  sqlite だけのテストは緑のまま通る)
+- **トランザクション内の早期 `return`** — 巻き戻すのは «例外» だけ。途中で `return` すると
+  **そこまでの書き込みが確定する**。複数件を書く処理は
+  «全部の検証 → 全部の書き込み» の順にして、検証中に `return` しない
+- **歯止めが黙って全開する書き方** — `grep -vE ""` は「全部許可」、
+  `echo "k=$(cmd)"` は `cmd` が失敗しても `set -e` に捕まらない
+
 ---
 
 ## 7. Job / Batch / Schedule (非同期処理・定期実行)
@@ -1192,6 +1354,117 @@ docker compose exec app php artisan queue:flush
 - **Queue ドライバーは `database`** (`src/.env` の `QUEUE_CONNECTION=database`、`jobs` テーブル使用)
 - 失敗 Job は `failed_jobs` テーブル、Batch 進捗は `job_batches` テーブルに格納される
 
+### 外部へ出る処理は「到達性がアプリ本体と同じ経路」に置く
+
+`batch` と `job` は **別のコンテナ / 本番では別のタスク** として動く。
+本番のネットワーク制御 (セキュリティグループ等) は**コンテナ単位**で付くので、
+**「app からは繋がるのに batch からは繋がらない」が普通に起きる**。
+
+外部システム (社内 DB / 取引先 API) へ出る定期処理は **キュージョブへ寄せ**、
+Console Command は **「ジョブを投げる」で終わらせる**。到達性を「アプリ本体と同じ経路」に揃えるため。
+
+- ⚠ **判定は発火から辿れる範囲すべてで見る。** Command が直接外部を触っていなくても、
+  呼んだ Service の先の Repository が外部へ出ていれば同じ問題になる。
+  Service の `__construct` を 1 段辿る
+- ⚠ **症状が「無言」になりやすい。** 到達できないだけなので例外ではなく «該当 0 件» として
+  流れ、warning しか残らない。**「手動だと動くのに定期実行だとスルーされる」の正体はたいていこれ**
+  (手動実行は batch を経由しない)
+- ⚠ **例外を作るなら理由を `routes/console.php` に書く。**
+  「1 件ずつ繋ぐのでキューの打ち切りに収まらない」など、
+  次の人が同じ判断をやり直せる形で残す
+
+**外部へ出ない定期実行は Command に実処理を書いてよい。** 自DB・自分のストレージ・
+自分のパイプラインだけを触るもの、外部から**データを回収してくるだけ**のものは、
+発火と実行を分けてもログと再試行の経路が増えるだけで得るものが無い。
+分岐の基準は「**外部へ出るか**」だけで、「定期実行だから」ではない。
+
+### ジョブ側の作法 (重なり / 打ち切り / 可観測性)
+
+定期的に発火して同じ対象を拾うジョブでは、**重なり・打ち切り・無言の 0 件**が必ず問題になる。
+書く前に次を決める。
+
+| 決めること | 既定 | 理由 |
+|---|---|---|
+| `$tries` | 定期発火のジョブは **1** | キュー側でも再試行すると同じ対象を二重に処理し得る。再試行は次の発火に委ねる |
+| `$timeout` | **`retry_after` (`config/queue.php` = 90 秒) と `stopwaitsecs` (`docker/php/supervisord-job.conf` = 60 秒) の両方より短く** | 前者を超えると走っている間に予約が切れて別のワーカーが同じ処理を取り、後者を超えるとコンテナ停止時に強制終了される |
+| 重なりの防止 | **`Cache::lock`** (`ShouldBeUnique` は使わない) | 下記 |
+| 1 回で処理する件数 | **上限を切る** | 下記 |
+| ログ | **0 件でも残す** (`Log::channel('stdout')`) | 下記 |
+
+**`ShouldBeUnique` は使わない。**
+ロックが取れないと dispatch を「例外も出さず、何も積まず」に打ち切るため
+(`PendingDispatch::shouldDispatch`)、**投げた側から取りこぼしを検知できない**。
+打ち切りでワーカーが強制終了してロックだけ残ると、
+「発火しているのにジョブが 1 度も走らず、0 件のログすら出ない」周期が生まれる。
+`Cache::lock` を自分で取り、**取れなかったことをログに残す**。
+
+**ロックの寿命は「打ち切り (`$timeout`) より少し長く、発火の間隔より短く」。**
+強制終了で release が呼ばれなくても次の発火までに自然に切れる必要がある
+(切れないと「永久に重なり扱いで何もしない」になる)。
+
+**1 回で通し切れる量に上限を切る。**
+Service が渡された件数を全部処理し終えてから返す作りだと、打ち切りに達した回は
+後片付け (処理済み行の削除など) に 1 度も到達せず **1 件も進まない**。
+次回も同じ先頭を取り直すので、永久に進まなくなる。
+
+**0 件でもログを残す。**
+「発火はしているが 1 件も進んでいない」を外から見分けるため。
+何も出さないと、正常な «対象なし» と «壊れていて 0 件» が区別できない。
+
+**秘密情報をペイロードに載せるなら `ShouldBeEncrypted`。**
+`jobs.payload` にも、失敗後に残る `failed_jobs.payload` にも **平文で書かれる**。
+ジョブ内で例外を握り潰しても防げない (積んだ時点で書かれている)。
+
+```php
+final class SyncExternalStatusJob implements ShouldQueue
+{
+    use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
+
+    /** 定期発火なので再試行は次の発火に委ねる。 */
+    public int $tries = 1;
+
+    /** retry_after(90) と stopwaitsecs(60) の両方より短くする。 */
+    public int $timeout = 50;
+
+    public function handle(ExternalStatusService $service): void
+    {
+        // 打ち切り(50 秒)より少し長く、発火間隔(5 分)より短い寿命にする。
+        $lock = Cache::lock('sync-external-status', 90);
+        if (! $lock->get()) {
+            Log::channel('stdout')->info('前回の実行と重なったため見送りました');
+            return;
+        }
+
+        try {
+            // 1 回で通し切れる量に上限を切る (打ち切りに達すると 1 件も進まなくなるため)。
+            $count = $service->syncPendingList(limit: Limit::SYNC_BATCH_SIZE);
+            // 0 件でも残す (「発火しているのに進んでいない」を外から見分けるため)。
+            Log::channel('stdout')->info("外部状態を同期しました: {$count} 件");
+        } finally {
+            $lock->release();
+        }
+    }
+}
+```
+
+### 発火側 (Schedule) の作法
+
+- **`Schedule::command(...)` の出力を捨てない。**
+  `schedule:run` は子プロセスの出力を自分のパイプへ受けるので、
+  **コマンドが出した内容も、その中で残した Log も、既定ではどこにも残らない**。
+  「手動実行だと見えるのに、定期実行だと何も残らない」の正体はこれ。
+  - ⚠ **`appendOutputTo('/dev/stdout')` では直らない。**
+    それはスケジューラのパイプを指すだけで、コンテナの標準出力ではない
+  - このリポジトリは cron daemon が `schedule:run` の出力を
+    `storage/logs/scheduler-cron.log` に受け、`tail -F` で stdout に流す構成にしてある (上記「環境構成」)。
+    **この経路を変える (出力先の変更 / cron からの切り離し / `schedule:work` への差し替え) ときは、
+    「コマンドの出力が本当にコンテナのログまで届くか」を実機で確認してから入れる**
+- **`withoutOverlapping()` はジョブを投げるところにしか効かない。**
+  ジョブへ寄せた処理が重ならないことは、ジョブ側のロックが担う (上記)
+- **dispatch の失敗を握り潰さない。**
+  投げられないのはキューの保管先 (自DB) に触れていないということなので、
+  ログを残して `FAILURE` を返す。黙って成功扱いにすると「発火しているのに何も起きない」になる
+
 ### 鉄則
 
 - **`handle()` の中身は Service 呼び出し 1 行が基本**。条件分岐 / DB / API 通信を書かない
@@ -1292,11 +1565,28 @@ class RegisterRequest extends FormRequest
 
 #### 鉄則
 
+- **入力検証は必ず FormRequest に置く。**
+  Controller で `$request->validate()` / `Validator::make()` を直書きしない。
+  直書きすると同じ入力の規則が画面ごとに散り、二重管理になる
+- **Service は「検証済みの値を受け取る前提」で書く。**
+  入力形式の検証 (必須か・書式が正しいか) は FormRequest、
+  **「その操作をしてよいか」という業務ルールの検査は Service** — この線で分ける
 - フィールド名は **`public const string`** で定数化 (型付き定数、大文字スネークケース)
 - `rules()` で **`self::FIELD_NAME`** を使う (キーに文字列直書き禁止)
 - Controller でも **`$request->validated(SomeRequest::FIELD_NAME)`** で参照
 - `authorize()` は **必ず明示** (Laravel デフォルトに任せない)
 - `rules()` に PHPDoc で戻り値型を書く (`array<string, ValidationRule|array<mixed>|string>`)
+
+#### 検証ルールを足したら `lang/ja/validation.php` も見る
+
+`src/lang/ja/validation.php` が **書き忘れた欄の受け皿**。
+ここに無いルールを使うと、Laravel 同梱の英語
+(`The email field must be a valid email address.`) がそのまま利用者に出る。
+
+- 欄ごとの言い回しは **FormRequest の `messages()`** に寄せる (画面の文脈が要るため)
+- `lang/ja/validation.php` は **「どの画面でも日本語になること」を保証する土台**
+- 収録するのは「アプリで実際に使っているルール」＋取りこぼしが出やすい基本ルールまで。
+  使っていないルールまで並べても保守対象が増えるだけ
 
 ### Resource
 
@@ -1511,81 +1801,205 @@ Controller には **ビジネスロジックを 1 行も書かない**。Service
 
 ## 9. PR 規約 (マイグレーション編)
 
-`src/database/migrations/` 以下にファイルを **追加 / 変更した PR** は、
-本文に以下の 5 項目を必ず書く。レビューエージェント
+`src/database/migrations/` 以下にファイルを **追加 / 変更した PR** は、本文の
+**「実装の概要」と「チェック状況」の中に** 次を含める。レビューエージェント
 [`.claude/agents/laravel-migration-pr-checker.md`](.claude/agents/laravel-migration-pr-checker.md)
-がこの規約に基づいて自動チェックする。
+がこの規約に基づいてチェックする。
 
-### 9-1. 追加マイグレーションファイル
+> ⚠️ **DB 用の独立見出しを新設しない。** 「実装の概要」「チェック状況」という通常の枠に収める。
+> 専用の見出しを増やすと、マイグレーションの無い PR で空欄の枠が残り、テンプレートが形骸化する
+> (レビューエージェントも「未記入」と誤検出しやすくなる)。
 
-差分に入っているマイグレーションファイルのパスを列挙する。
+### 9-1. 実装の概要に書くこと (必須)
+
+- 追加 / 変更したマイグレーションファイルの**パス**
+- **なぜ必要か** を端的に
 
 ```markdown
 - `src/database/migrations/2026_05_24_220001_create_kanban_card_table.php`
+  カンバンのカードを保存する。lane + position で表示順を持つため複合 index を張る。
 ```
 
-### 9-2. 実行される SQL
+⚠ **CREATE TABLE 等の DDL 全文は転記しない。** マイグレーションファイルを見れば分かる。
+書くのは **新規 index / 制約など、レビュー上重要な変更点の要点だけ**。
+全文を貼ると、本当に見てほしい 1 行が埋まる。
 
-`Schema::create(...)` / `Schema::table(...)` から実際に発行される SQL を `sql` コードブロックで貼る。
-PostgreSQL を前提に、`BIGSERIAL` / `TIMESTAMP(0) WITHOUT TIME ZONE` 等の本物の型名で書く。
+### 9-2. チェック状況に書くこと (必須)
 
-入手方法:
-- migration ファイルから直接読み解いて手書き (シンプル)
-- migrate 済みのテーブルなら `docker compose exec db psql -U laravel -d laravel -c '\d <table>'` の
-  出力を整形
-- 未 migrate のときは `php artisan migrate --pretend` で発行 SQL を確認
-
-```markdown
-\`\`\`sql
-CREATE TABLE "kanban_card" (
-    "id"       BIGSERIAL    PRIMARY KEY,
-    "user_id"  BIGINT       NOT NULL,
-    ...
-);
-CREATE INDEX "kanban_card_user_id_lane_position_index"
-    ON "kanban_card" ("user_id", "lane", "position");
-\`\`\`
-```
-
-### 9-3. EXPLAIN (実行計画)
-
-新規追加カラム / インデックスが効くべき **主要 SELECT クエリ** について `EXPLAIN ANALYZE` を実行し、
-出力を貼る。確認したいのは:
-
-- `Index Scan` を使えているか (`Seq Scan` に落ちていないか)
-- 想定したインデックスが選ばれているか
-- 実行時間が妥当な範囲か (典型的にはサンプルデータで sub-ms)
+- `migrate:fresh` 等での作成確認
+- **影響する主要 SELECT の `EXPLAIN ANALYZE` 出力 (全文)**。
+  新規カラム / 索引を `WHERE` / `ORDER BY` / `JOIN` に使うクエリが対象。
+  **対象の実行時クエリ (アプリが実際に発行する SQL) も併記**し、
+  **Index Scan が効き Seq Scan に落ちていない**ことを一言添える
 
 ```bash
 docker compose exec -T db psql -U laravel -d laravel \
   -c "EXPLAIN ANALYZE SELECT * FROM kanban_card WHERE user_id = 1 AND deleted_at IS NULL ORDER BY lane, position;"
 ```
 
-出力を貼ったうえで、1〜2 行のコメント (どのインデックスが効いたか / Seq Scan ではないことを確認した旨)
-を添える。
+#### 例外: 行数が設計で頭打ちになるテーブル
 
-### 9-4. down() の reversibility
+設定テーブルのように **行数が enum のケース数などで決まり、運用で増えない** テーブルは、
+プランナが Seq Scan を選ぶのが正しい。この場合は Seq Scan のままでよいが、
+**実測の行数と `Buffers`** を添えて「なぜ増えないのか」を書く。
 
-`down()` がどう書かれているか、安全に巻き戻せるかを書く。
-特に以下のケースは明示すること:
+⚠ 例外はこの条件に限る。**「今はデータが少ないから」は理由にならない**
+(件数が伸びる前提のテーブルで Seq Scan を見逃さないため)。
 
-- 外部キー制約を張った / 張らない (張ったなら down() で適切に DROP するか)
-- `DROP COLUMN` で消えるデータがある場合の補足
-- `dropSoftDeletes()` / `dropIfExists()` を使っているなら問題なし
+### 9-3. 特記事項があるときだけ書くこと
 
-### 9-5. 既存データへの影響
+`down()` の可逆性と既存データへの影響は **必須記載としない**。
+毎回書かせると定型文になって読まれなくなるので、**次に当たるときだけ**書く。
 
-- 既存行に対する挙動 (NULL 埋め / DEFAULT 値 / バックフィル要否)
-- ロック挙動 (`ALTER TABLE ... ADD COLUMN NULL` は PostgreSQL 11+ で
-  メタデータのみ、`NOT NULL DEFAULT ...` は全行書き換えで長時間ロック等)
-- 本番運用時に検討すべき段階的 migration (例: 大規模テーブルなら NULL カラム追加 →
-  バックフィル → NOT NULL 化、を別 PR に分割)
+- `DROP COLUMN` で消えるデータがある
+- 既存行のバックフィルが要る (NULL 埋め / DEFAULT 値)
+- ロックが長い (`ALTER TABLE ... ADD COLUMN` は PostgreSQL 11+ ならメタデータのみだが、
+  **定数でない DEFAULT** を付けると全行書き換えになる)
+- 大規模テーブルで段階的 migration に分けるべき
+  (NULL カラム追加 → バックフィル → NOT NULL 化 を別 PR に分割)
 
-サンプルプロジェクトなので「行数少なく影響なし」と書くだけでも OK だが、
-本番投入を意識した PR では具体的に書くこと。
+### 9-4. enum の値を変える差分
 
-### 不要な PR
+`case ... = '...'` の **値** が変わる差分は、**必ずデータ移行と対で**出す (§1)。
+既存行・CHECK 制約・外部との契約がずれる。ケース名 (PHP 識別子) だけの変更は安全。
 
-`PULL_REQUEST_TEMPLATE.md` の **「DB マイグレーション」セクションは、マイグレーション差分が無い PR では
-丸ごと削除して構わない**。テンプレが残ったままだとレビューエージェントが「未記入」と扱う可能性があるので、
-不要な PR では「セクションごと削除」 を徹底する。
+---
+
+## 10. 外部システム由来の名前 (自分たちで名前を決められないとき)
+
+§3 は「名前だけで意味が通ること」を求める。だが **外部システムのスキーマ**
+(社内の別システムの DB、取引先の API) の名前はこちらでは改名できない。
+`web` / `req` / `sp1` / `fdel` のように、名前から意味が読めない列が普通にある。
+
+**名前を変えられないぶん、意味をコードに残す。**
+
+| 対象 | 扱い |
+|---|---|
+| テーブル名・列名 | **生名のまま使う** (別名を作らない)。先方の資料・実データと突き合わせるときに「どちらの表記か」を考えずに済ませるため (§1 の外部契約値と同じ理由)。そのかわり、**出てくる箇所に業務上の意味を 1 行**添える |
+| 区分値 (`'0'` / `'1'` 等のフラグ・ステータス値) | **直書き禁止**。1 つの Repository で完結するなら `private const`、複数の Repository で使う / アプリの分岐になるなら backed enum にする |
+| 識別子 (`custid` 等) | 生名のまま Model・自DBの列まで持ってよい (外部を引くキーそのもののため)。Model のアクセサと**マイグレーションの列コメント**に「どの外部システムの何か」を書く |
+| 外部の値を Repository の外へ渡すとき | **生値を渡さない**。境界 (Repository) で enum / bool / Model に変換し、Service から先は名前で意味が分かる形にする |
+
+定数・enum には「**どの列の何を表す値か**」を docblock で書く。
+
+```php
+/** dbab.web が「申込完了」を表す値。 */
+private const string WEB_COMPLETED = '2';
+```
+
+- **自DBの列名で外部の語彙を真似しない** (`sp1` のような列を新設しない)。例外は上表の識別子のみ
+- **外部の語彙を自分たちのコードの名前として広げない。**
+  `$web` / `$flg` / `$stat` のような、値の意味を知っている人にしか読めない名前は、
+  業務上の意味を表す名前に置き換える (`$isApplicationCompleted` 等)
+
+⚠ §6 の「不要な What コメントは書かない」と矛盾しない。
+**名前を自分たちで決められる箇所は改名で直し、決められない外部由来の語彙だけ
+コメント・定数・enum で意味を補う**、という切り分け。
+
+⚠ **外部システムの DB への書き込みは既定で禁止**にして、必要になったところだけ
+「合意済みの例外」として **理由と合意の出所を添えて** 残す (§6)。
+読み取り専用が既定でないと、どこから何が書かれるか分からなくなる。
+
+---
+
+## 11. フロントエンド (`src/resources/js/`)
+
+`admin/` は React + TypeScript の SPA、ルート直下 (`app.js` / `kanban.js` / `user.js`) は
+htmx + Alpine のユーザー面。**規約の一次情報はここ**で、
+`.claude/agents/frontend-reviewer.md` がこれに照らして違反を検出する。
+
+- **§3 の命名規則はそのまま効く** — 名前だけで意味が通ること、bool は `is~` / `has~` / `can~`、
+  略語で意味を潰さない。ハンドラは `handle~` / `on~`。
+  複数件は複数形でよい (PHP 側の `~List` サフィックスまでは求めない)
+- **API レスポンスのキーをそのまま画面のロジックへ広げない** — サーバー側の名前
+  (特に外部システム由来のもの) は表示のために持ち回ってよいが、
+  **分岐に使う値は名前付き定数に束ねる** (§10 と同じ考え方)。
+  ステータス文字列 (`'in_progress'` 等) を直書きで比較しない
+- **ガード節でネストを平坦化する** — 3 段以上のネスト・長い `else` 連鎖は
+  早期 return / `switch` / マップに置き換える (§5 と同じ)
+- **三項演算子はネストしない** — `a ? b : c ? d : e` は禁止。
+  JSX の込み入った条件描画は変数抽出・コンポーネント分割へ。
+  単純な二択 (`cond ? A : B`) や `cond && <X/>` は可
+- **マジックナンバー / 文字列を使わない** — ページサイズ・上限・ミリ秒・API パス・
+  権限キー・ステータス値は名前付き定数へ (§1 と同じ)
+- **`.map()` の `key` は安定した id** — `key` 無し / `key={index}` は不可
+  (並び替え・追加削除で表示が壊れる)
+- **共通部品に倣う** — fetch は `admin/api.ts` を通す。独自の fetch ラッパを作らない
+- **副作用は必ず後始末する** — `useEffect` の中で張った `setInterval` /
+  `addEventListener` / `AbortController` は cleanup で外す
+
+⚠ **管理画面 SPA は CI で lint されない** (`vite build` は未定義変数を通す)。
+宣言漏れ・未使用は実機まで気づけないため、
+**レビューで名前・未使用・宣言の整合を見る比重が PHP 側より大きい**。
+
+---
+
+## 12. テストの作法
+
+「テストが緑」を「壊れていない」と読み替えられる状態を保つ。
+以下はいずれも **緑のまま壊れた** 形。
+
+### 一部だけ回して判断しない
+
+`--filter` で該当テストだけ回すと、**そのファイルからは見えない壊れ方**を取りこぼす。
+
+- interface にメソッドを 1 つ足すと、**匿名クラスで作ったテストダブル**が実装漏れで落ちる。
+  Mockery は素通りするので、周辺のスイートは緑のまま **CI だけ落ちる**
+- Service に `Log::` を足すと、コンテナを起こさない Unit テストが
+  `Target class [log] does not exist` で落ちる
+
+**最後は必ず全量 (`php artisan test`) を回す。**
+
+### ループの中で立てた Mockery の期待は 1 件目しか使われない
+
+```php
+// NG: 3 回とも 1 件目の値が返る
+foreach ($caseList as $case) {
+    $repository->shouldReceive('findById')->andReturn($case);
+}
+
+// OK: 呼ばれた順に返す
+$repository->shouldReceive('findById')->andReturnValues($caseList);
+```
+
+状態ごとに戻り値を変えたいテストがこの形になっていると、
+**1 パターンしか検証していないのに「全状態を見た」ように読める**。
+
+### 環境変数に依存する分岐は、テストの中で明示的に値を入れる
+
+CI は `.env.example` をコピーするだけなので、
+**空の値のまま分岐が一度も評価されず緑**になる。`config([...])` で入れてから確かめる。
+
+### SQLite だけで確かめない
+
+- **マイグレーションは本番と同じ RDBMS (PostgreSQL) でも流す。**
+  識別子の 63 文字上限による «静かな切り詰め → 索引名の衝突» のような、
+  PostgreSQL でしか落ちない書き方が緑のまま入る
+- **握り潰した SQL エラーの挙動** (§6) も SQLite では再現しない
+
+### ミューテーションで「テストが本当に見ているか」を確かめる
+
+直したところを **わざと壊して、テストが赤くなること** を確認する。
+赤くならなければ、そのテストはその挙動を見ていない。
+
+確認用のスクリプトを書くなら、**スクリプト自身が
+「変異が当たったか」「構文が壊れていないか」「未コミットの残骸が無いか」を検査する**
+形にする (嘘の「検証できた」を防ぐ)。戻すときは `git checkout HEAD -- <path>` で
+確実に戻す (手で戻すと修正前のコードを走らせたまま «確認できた» になる)。
+
+---
+
+## 13. 外部に出す文章での書き方 (PR / コミット / issue)
+
+- **コミット / PR に「Generated with ...」等の署名を付けない。**
+  `Co-Authored-By:` トレーラーも付けない
+- **実装やレビューの補助に使った個別ツールの名前を書かない。**
+  レビューの出所に触れる必要があるときは「**セルフレビュー**」
+  「追加のセルフレビューで検出」等の一般表現にする
+  - リポジトリに入っているレビュー用サブエージェント (`.claude/agents/` 配下) は
+    共有物なので、名前を書いてよい
+- **検出した内容・根拠・修正は具体的に書く。**
+  読者に必要なのは「何で見つけたか」ではなく「**何が問題でどう直したか**」
+- コミットメッセージは **Conventional Commits** (`type(scope): 要約`)、本文は日本語
+
+理由: どのツールで見つけたかは成果物の品質と無関係で、読み手にとってノイズになる。

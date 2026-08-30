@@ -7,16 +7,16 @@ namespace App\Enum\Kanban;
 /**
  * Kanban カードの 4 つのレーン。
  *
- * - value (DB に保存する文字列) は小文字スネークケース
- * - case 名は大文字スネークケース (CLAUDE.md §1)
+ * - case 名はパスカルケース、value (DB に保存する文字列) は小文字スネークケース (CLAUDE.md §1)
+ * - value は DB の既存行が参照しているため、表記を揃える目的で変えない
  * - 表示順は次のメソッドで定義 → {@see self::orderedList()}
  */
 enum KanbanLane: string
 {
-    case TODO   = 'todo';
-    case DOING  = 'doing';
-    case REVIEW = 'review';
-    case DONE   = 'done';
+    case Todo   = 'todo';
+    case Doing  = 'doing';
+    case Review = 'review';
+    case Done   = 'done';
 
     /**
      * 画面で左から右に並べるときの順序で返す。
@@ -26,10 +26,10 @@ enum KanbanLane: string
     public static function orderedList(): array
     {
         return [
-            self::TODO,
-            self::DOING,
-            self::REVIEW,
-            self::DONE,
+            self::Todo,
+            self::Doing,
+            self::Review,
+            self::Done,
         ];
     }
 
@@ -39,10 +39,10 @@ enum KanbanLane: string
     public function label(): string
     {
         return match ($this) {
-            self::TODO   => 'TODO',
-            self::DOING  => 'DOING',
-            self::REVIEW => 'REVIEW',
-            self::DONE   => 'DONE',
+            self::Todo   => 'TODO',
+            self::Doing  => 'DOING',
+            self::Review => 'REVIEW',
+            self::Done   => 'DONE',
         };
     }
 }

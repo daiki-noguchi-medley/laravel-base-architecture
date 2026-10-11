@@ -20,7 +20,7 @@ jobs:
       # tag の push に書き込み権限が必要 (GitHub Actions のデフォルトは read のみ)
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # tag を打つには全 commit 履歴が必要
           fetch-depth: '0'

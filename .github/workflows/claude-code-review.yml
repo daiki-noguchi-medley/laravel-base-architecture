@@ -99,7 +99,7 @@ jobs:
       #     あちらは $PWD をコンテナへ丸ごと渡すので判断が違う。揃えないこと。
       - name: リポジトリを checkout する
         if: steps.key.outputs.configured == 'true'
-        uses: actions/checkout@v4 # zizmor: ignore[artipacked]
+        uses: actions/checkout@v7 # zizmor: ignore[artipacked]
         with:
           ref: ${{ github.event_name == 'issue_comment' && format('refs/pull/{0}/head', github.event.issue.number) || github.event.pull_request.head.sha }}
           fetch-depth: 0
@@ -153,7 +153,7 @@ jobs:
         # ⚠ ジョブの上限とは別に、この 1 ステップにも上限を置く。ジョブ側で打ち切ると
         #   後段 (実行ログの要約) ごと落ちて «何をして止まったか» が残らない。
         timeout-minutes: 22
-        uses: anthropics/claude-code-action@1f291e1cfe0f5fc21db2aef19af844591600ade7 # v1.0.206
+        uses: anthropics/claude-code-action@2dca132ff0e0c4094ce6048b422c6915a071210b # v1.0.247
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           # ⚠ 既定は Claude GitHub App 経由。App を入れていないリポジトリでも動くよう

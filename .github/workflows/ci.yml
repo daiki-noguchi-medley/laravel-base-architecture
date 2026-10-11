@@ -51,10 +51,10 @@ jobs:
           --health-retries 5
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: PHP 8.4 を用意する
-        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
         with:
           php-version: '8.4'
           extensions: pdo, pdo_pgsql, pdo_sqlite, mbstring, gd, zip, bcmath, intl, opcache, exif, pcntl
@@ -62,14 +62,14 @@ jobs:
           tools: composer:v2
 
       - name: Node 20 を用意する
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: '20'
           cache: npm
           cache-dependency-path: src/package-lock.json
 
       - name: composer の依存をキャッシュする
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: src/vendor
           key: ${{ runner.os }}-composer-${{ hashFiles('src/composer.lock') }}
@@ -133,7 +133,7 @@ jobs:
       # ⚠ persist-credentials: false。下の 2 つは $PWD をコンテナへ丸ごと渡すため、付けないと
       #   .git/config に残る GITHUB_TOKEN も一緒に入る。どちらも git 認証は使わない
       #   (zizmor へは -e GH_TOKEN で明示的に渡す)。
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
 

@@ -20,7 +20,7 @@ jobs:
       # tag の push に書き込み権限が必要 (GitHub Actions のデフォルトは read のみ)
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # tag を打つには全 commit 履歴が必要
           fetch-depth: '0'
@@ -38,7 +38,7 @@ jobs:
       - name: Slack Notification
         # 成功 / 失敗どちらでも通知 (always)
         if: always()
-        uses: rtCamp/action-slack-notify@33ca3be66c6f378fe1610fd1d5258632dbed5e58 # v2
+        uses: rtCamp/action-slack-notify@06cc13f74fa8d4d2296c09455d91e9453e4025f4 # v2
         env:
           SLACK_COLOR: ${{ job.status == 'success' && '#4834d4' || '#dc3545' }}
           SLACK_TITLE: "[${{ github.repository }}] タグ作成"

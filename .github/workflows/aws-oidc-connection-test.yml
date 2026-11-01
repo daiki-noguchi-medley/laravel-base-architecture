@@ -46,7 +46,7 @@ jobs:
           echo "Role ARN: $ROLE_ARN"
 
       - name: AWS credentials を OIDC で取得
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           # IAM Role ARN は機密情報ではない (sub claim マッチが無いと assume できないため)
           # secrets ではなく variables に置く

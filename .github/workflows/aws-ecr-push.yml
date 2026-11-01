@@ -39,7 +39,7 @@ jobs:
 
     steps:
       - name: 起動 ref を checkout (Use workflow from で選んだもの)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         # ref を省略すると github.ref (= 起動時に選ばれた branch / tag) が使われる
 
       # ⚠ 式は env へ受けてから使う。run の中へ直接展開すると、ref 名のように
@@ -78,7 +78,7 @@ jobs:
           echo "ecr_tag=$ECR_TAG" >> "$GITHUB_OUTPUT"
 
       - name: AWS credentials を OIDC で取得
-        uses: aws-actions/configure-aws-credentials@v4
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           role-to-assume: ${{ vars.AWS_IAM_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
@@ -96,10 +96,10 @@ jobs:
           echo "==> push 先 image URI: $IMAGE_URI"
 
       - name: Docker buildx を初期化 (キャッシュ活用用)
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: build + push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: ${{ env.DOCKER_CONTEXT }}
           file: ${{ env.DOCKERFILE_PATH }}
